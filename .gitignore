@@ -1,3 +1,16 @@
+# Ignore Data
+*.csv
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
