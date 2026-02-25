@@ -1,1 +1,13 @@
+# Ignore Data
+*.csv
 
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
