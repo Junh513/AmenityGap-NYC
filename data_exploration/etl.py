@@ -95,33 +95,66 @@ def push_to_supabase(df):
     except Exception as e:
         print(f"Error pushing to Supabase: {e}")
 
+# def run():
+#     parser = argparse.ArgumentParser(description="NYC Amenity ETL Ingestor")
+#     parser.add_argument("--type", help="Amenity type to fetch (laundry, pharmacy, deli)", required=True)
+#     args = parser.parse_args()
+
+#     osm_filter = AMENITY_CONFIG.get(args.type)
+
+#     if not osm_filter:
+#         print(f"Error: Type '{args.type}' is not supported yet.")
+#         return
+    
+#     dynamic_query = f"""
+#         [out:json][timeout:90];
+#         area(3600175905)->.searchArea;
+#         (
+#         {osm_filter}
+#         );
+#         out center;
+#     """
+
+#     df = fetch_and_index(dynamic_query, args.type)
+
+#     if df is not None:
+#         # df.to_csv("./data/laundry_etl.csv", index=False, encoding='utf-8')
+#         push_to_supabase(df)
+#     else:
+#         print("Abort: Failed to fetch data")
+
+
 def run():
     parser = argparse.ArgumentParser(description="NYC Amenity ETL Ingestor")
-    parser.add_argument("--type", help="Amenity type to fetch (laundry, pharmacy, deli)", required=True)
+    parser.add_argument("--type", help="Amenity type (laundry, pharmacy, deli, or 'all')", required=True)
     args = parser.parse_args()
 
-    osm_filter = AMENITY_CONFIG.get(args.type)
+    # Determine which types to process
+    types_to_run = AMENITY_CONFIG.keys() if args.type == "all" else [args.type]
 
-    if not osm_filter:
-        print(f"Error: Type '{args.type}' is not supported yet.")
-        return
-    
-    dynamic_query = f"""
-        [out:json][timeout:90];
-        area(3600175905)->.searchArea;
-        (
-        {osm_filter}
-        );
-        out center;
-    """
+    for amt_type in types_to_run:
+        osm_filter = AMENITY_CONFIG.get(amt_type)
 
-    df = fetch_and_index(dynamic_query, args.type)
+        if not osm_filter:
+            print(f"Error: Type '{amt_type}' is not supported.")
+            continue
+        
+        # Build query for THIS specific type
+        dynamic_query = f"""
+            [out:json][timeout:90];
+            area(3600175905)->.searchArea;
+            ({osm_filter});
+            out center;
+        """
 
-    if df is not None:
-        # df.to_csv("./data/laundry_etl.csv", index=False, encoding='utf-8')
-        push_to_supabase(df)
-    else:
-        print("Abort: Failed to fetch data")
+        print(f"\n--- Starting ETL for: {amt_type} ---")
+        df = fetch_and_index(dynamic_query, amt_type)
+
+        if df is not None:
+            push_to_supabase(df)
+        else:
+            print(f"Skipping {amt_type}: Fetch failed.")
+
 
 if __name__ == "__main__":
     run()

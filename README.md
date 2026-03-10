@@ -117,10 +117,10 @@ git push origin feature/your-feature-name
 
 I've already set up the Python ETL script that handles our data. Here's how to run it:
 
-1. Run `python ./data_exploration/etl.py --type deli` in your terminal in root directory (currently supported flags: `deli`, `laundry`, `pharmacy`)
+1. Run `python ./data_exploration/etl.py --type all` in your terminal in root directory (currently supported flags: `deli`, `laundry`, `pharmacy`, `all`)
 
 2. It will try to pull fresh data from OSM and organize it for our map
 
 3. It also generates the H3 indices for each result so we don't have to calculate this again later
 
-I'm hoping to add parameters to the etl script soon to update certain amenities, so expect changes in the near future!
+4. Changes and new locations are then added to the amenity table in our Supabase project
