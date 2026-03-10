@@ -111,7 +111,6 @@ def run():
             print(f"Error: Type '{amt_type}' is not supported.")
             continue
         
-        # Build query for THIS specific type
         dynamic_query = f"""
             [out:json][timeout:90];
             area(3600175905)->.searchArea;
