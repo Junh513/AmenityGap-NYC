@@ -117,7 +117,7 @@ git push origin feature/your-feature-name
 
 I've already set up the Python ETL script that handles our data. Here's how to run it:
 
-1. Navigate to the root directory and run `python data_exploration/etl.py` in your terminal
+1. Run `python ./data_exploration/etl.py --type deli` in your terminal in root directory (currently supported flags: `deli`, `laundry`, `pharmacy`)
 
 2. It will try to pull fresh data from OSM and organize it for our map
 
