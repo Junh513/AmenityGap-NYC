@@ -115,12 +115,30 @@ git push origin feature/your-feature-name
 
 ## Running the ETL
 
-I've already set up the Python ETL script that handles our data. Here's how to run it:
+AmenityGap uses a unified Python ETL pipeline to manage our data. It handles Extraction (OpenStreetMap), Transformation (H3 Spatial Indexing), and Loading (Supabase Cloud DB).
 
-1. Navigate to the root directory and run `python data_exploration/etl.py` in your terminal
+1. Syncing the Database (Admin)
 
-2. It will try to pull fresh data from OSM and organize it for our map
+    To pull fresh NYC data and sync it to our Supabase instance, run the ETL script from the root directory:
+    ```
+    # Sync all supported amenities at once
+    python ./data_exploration/etl.py --type all
 
-3. It also generates the H3 indices for each result so we don't have to calculate this again later
+    # Or sync a specific category (options: deli, laundry, pharmacy)
+    python ./data_exploration/etl.py --type laundry
+    ```
+    - H3 Indexing: The script automatically generates H3 indices (Res 7, 8, and 9) for every location.
 
-I'm hoping to add parameters to the etl script soon to update certain amenities, so expect changes in the near future!
+    - Deduplication: Uses upsert logic so running the script multiple times won't create duplicate entries.
+
+
+2. Fetching Data for the App (Team)
+
+    I've provided a utility script, `supabase_utils.py`, so you don't have to write raw database queries. Just import the helper function:
+
+    ```
+    from data_exploration.supabase_utils import get_amenities_by_type
+
+    # Returns a list of dictionaries with all NYC laundromats + H3 indices
+    laundromats = get_amenities_by_type("laundry")
+    ```
