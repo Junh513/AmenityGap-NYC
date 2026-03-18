@@ -11,11 +11,11 @@ const NYC_BOUNDS = [
   [-74.27, 40.49],
 ];
 
-const H3_RES = 7;
+//const H3_RES = 7;
 
-export function addH3Layer(map, nycBoundary) {
-  const cells = polygonToCells([NYC_BOUNDS], H3_RES, true);
-
+export function addH3Layer(map, nycBoundary, resolution = 7)  {
+  const cells = polygonToCells([NYC_BOUNDS], resolution, true);
+  
   const filtered = cells.filter((cell) => {
   // Check center
   const [lat, lng] = cellToLatLng(cell);
