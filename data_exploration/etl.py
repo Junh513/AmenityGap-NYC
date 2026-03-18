@@ -1,4 +1,4 @@
-import requests, os, argparse, h3
+import requests, os, argparse, h3, time
 import pandas as pd
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -96,15 +96,50 @@ def push_to_supabase(df):
         print(f"Error pushing to Supabase: {e}")
 
 
+# def run():
+#     parser = argparse.ArgumentParser(description="NYC Amenity ETL Ingestor")
+#     parser.add_argument("--type", help="Amenity type (laundry, pharmacy, deli, or 'all')", required=True)
+#     args = parser.parse_args()
+
+#     # Determine which types to process
+#     types_to_run = AMENITY_CONFIG.keys() if args.type == "all" else [args.type]
+
+#     for amt_type in types_to_run:
+#         osm_filter = AMENITY_CONFIG.get(amt_type)
+
+#         if not osm_filter:
+#             print(f"Error: Type '{amt_type}' is not supported.")
+#             continue
+        
+#         dynamic_query = f"""
+#             [out:json][timeout:90];
+#             area(3600175905)->.searchArea;
+#             ({osm_filter});
+#             out center;
+#         """
+
+#         print(f"\n--- Starting ETL for: {amt_type} ---")
+#         df = fetch_and_index(dynamic_query, amt_type)
+
+#         if df is not None:
+#             push_to_supabase(df)
+#         else:
+#             print(f"Skipping {amt_type}: Fetch failed.")
+
+import time # Add this at the top with your other imports
+
 def run():
     parser = argparse.ArgumentParser(description="NYC Amenity ETL Ingestor")
     parser.add_argument("--type", help="Amenity type (laundry, pharmacy, deli, or 'all')", required=True)
     args = parser.parse_args()
 
     # Determine which types to process
-    types_to_run = AMENITY_CONFIG.keys() if args.type == "all" else [args.type]
+    if args.type == "all":
+        types_to_run = list(AMENITY_CONFIG.keys())
+    else:
+        types_to_run = [args.type]
 
-    for amt_type in types_to_run:
+    for i, amt_type in enumerate(types_to_run):
         osm_filter = AMENITY_CONFIG.get(amt_type)
 
         if not osm_filter:
@@ -125,6 +160,11 @@ def run():
             push_to_supabase(df)
         else:
             print(f"Skipping {amt_type}: Fetch failed.")
+
+        # Cooldown
+        if args.type == "all" and i < len(types_to_run) - 1:
+            print(f"⏳ Cooling down for 30 seconds to respect Overpass API limits...")
+            time.sleep(30)
 
 
 if __name__ == "__main__":
