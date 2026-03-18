@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { addH3Layer } from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity } from './h3Layer'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6842]
@@ -15,18 +15,13 @@ function App() {
   const [opacity, setOpacity] = useState(0.35)
   const [resolution, setResolution] = useState(7)
   const [pendingResolution, setPendingResolution] = useState(7)
-  const [nycBoundary, setNycBoundary] = useState(null)
+  const [layersReady, setLayersReady] = useState(false)
 
   const handleResetView = () => {
     if (!mapRef.current) return
-
-    mapRef.current.flyTo({
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM
-    })
+    mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
   }
 
-  // Create the map once
   useEffect(() => {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -38,10 +33,8 @@ function App() {
     })
 
     mapRef.current.on('load', async () => {
-      const res = await fetch('/nyc-boroughs.geojson')
-      const boundaryData = await res.json()
-      setNycBoundary(boundaryData)
-      addH3Layer(mapRef.current, boundaryData, resolution)
+      await loadAllH3Layers(mapRef.current)
+      setLayersReady(true)
     })
 
     return () => {
@@ -52,38 +45,19 @@ function App() {
     }
   }, [])
 
-  // Update H3 opacity whenever opacity changes
   useEffect(() => {
-    if (!mapRef.current) return
-    if (!mapRef.current.getLayer('h3-fill')) return
+    if (!mapRef.current || !layersReady) return
+    if (showH3) {
+      showResolution(mapRef.current, resolution)
+    } else {
+      showResolution(mapRef.current, null)
+    }
+  }, [resolution, showH3, layersReady])
 
-    mapRef.current.setPaintProperty('h3-fill', 'fill-opacity', opacity)
-  }, [opacity])
-
-  // Show or hide the H3 layer whenever showH3 changes
   useEffect(() => {
-    if (!mapRef.current) return
-    if (!mapRef.current.getLayer('h3-fill')) return
-    if (!mapRef.current.getLayer('h3-outline')) return
-
-    const visibility = showH3 ? 'visible' : 'none'
-
-    mapRef.current.setLayoutProperty('h3-fill', 'visibility', visibility)
-    mapRef.current.setLayoutProperty('h3-outline', 'visibility', visibility)
-  }, [showH3])
-
-  // Rebuild the H3 layer whenever resolution changes
-  useEffect(() => {
-    if (!mapRef.current) return
-    if (!nycBoundary) return
-    if (!mapRef.current.isStyleLoaded()) return
-
-    if (mapRef.current.getLayer('h3-fill')) mapRef.current.removeLayer('h3-fill')
-    if (mapRef.current.getLayer('h3-outline')) mapRef.current.removeLayer('h3-outline')
-    if (mapRef.current.getSource('h3-hexes')) mapRef.current.removeSource('h3-hexes')
-
-    addH3Layer(mapRef.current, nycBoundary, resolution)
-  }, [resolution, nycBoundary])
+    if (!mapRef.current || !layersReady) return
+    setH3Opacity(mapRef.current, opacity)
+  }, [opacity, layersReady])
 
   return (
     <>
@@ -104,9 +78,7 @@ function App() {
         <h3 style={{ marginTop: 0 }}>H3 Control Panel</h3>
 
         <div style={{ marginBottom: '16px' }}>
-          <label>
-            <strong>Show H3 Grid</strong>
-          </label>
+          <label><strong>Show H3 Grid</strong></label>
           <br />
           <input
             type="checkbox"
@@ -116,13 +88,11 @@ function App() {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label>
-           <strong>Resolution: {pendingResolution}</strong>
-          </label>
+          <label><strong>Resolution: {pendingResolution}</strong></label>
           <br />
           <input
-           type="range"
-            min="6"
+            type="range"
+            min="7"
             max="9"
             step="1"
             value={pendingResolution}
@@ -134,9 +104,7 @@ function App() {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label>
-            <strong>Opacity: {opacity.toFixed(2)}</strong>
-          </label>
+          <label><strong>Opacity: {opacity.toFixed(2)}</strong></label>
           <br />
           <input
             type="range"
