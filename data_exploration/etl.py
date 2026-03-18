@@ -21,7 +21,9 @@ out center;
 AMENITY_CONFIG = {
     'laundry': 'node["shop"="laundry"](area.searchArea); way["shop"="laundry"](area.searchArea); node["amenity"="washing-machine"](area.searchArea);',
     'pharmacy': 'node["amenity"="pharmacy"](area.searchArea); way["amenity"="pharmacy"](area.searchArea);',
-    'deli': 'node["shop"="deli"](area.searchArea); way["shop"="deli"](area.searchArea); node["shop"="convenience"](area.searchArea);'
+    'deli': 'node["shop"="deli"](area.searchArea); way["shop"="deli"](area.searchArea); node["shop"="convenience"](area.searchArea);',
+    'barber': 'node["shop"~"barber|hairdresser"](area.searchArea); way["shop"~"barber|hairdresser"](area.searchArea);',
+    'gas_station': 'node["amenity"="fuel"](area.searchArea); way["amenity"="fuel"](area.searchArea);',
 }
 
 ### SETUP SUPABASE ###
