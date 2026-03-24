@@ -4,8 +4,8 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData } from './h3Layer'
 import './App.css'
 
-const INITIAL_CENTER = [-73.9712, 40.6842]
-const INITIAL_ZOOM = 11.5
+const INITIAL_CENTER = [-73.9712, 40.6942]
+const INITIAL_ZOOM = 10
 
 const MAP_STYLES = {
   light: 'mapbox://styles/mapbox/light-v11',
@@ -20,14 +20,14 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
-  const [opacity, setOpacity] = useState(0.35)
+  const [opacity, setOpacity] = useState(0.45)
   const [resolution, setResolution] = useState(7)
   const [pendingResolution, setPendingResolution] = useState(7)
   const [layersReady, setLayersReady] = useState(false)
   const [selectedAmenity, setSelectedAmenity] = useState('')
   const [amenityTypes, setAmenityTypes] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
 
   const handleResetView = () => {
@@ -77,7 +77,7 @@ function App() {
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: MAP_STYLES.light,
+      style: MAP_STYLES.dark,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
     })
@@ -148,11 +148,6 @@ function App() {
                 </option>
               ))}
             </select>
-            {selectedAmenity && (
-              <div className="selected-amenity-tag">
-                {selectedAmenity.charAt(0).toUpperCase() + selectedAmenity.slice(1)}
-              </div>
-            )}
           </div>
 
           <div className="panel-card">

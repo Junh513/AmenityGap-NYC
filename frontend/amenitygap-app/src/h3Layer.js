@@ -18,14 +18,17 @@ export async function loadAllH3Layers(map) {
         "fill-color": [
           "step",
           ["get", "count"],
-          "rgba(0,0,0,0)",
-          1, "#fed976",
-          3, "#fd8d3c",
-          5, "#e31a1c",
-          8, "#bd0026",
-          12, "#800026",
+          "rgba(0,0,0,0)",       // 0 = transparent
+          1, "#e6d280",           // 1+
+          5, "#d4b44a",           // 5+
+          10, "#c49620",          // 10+
+          20, "#d4820a",          // 20+
+          35, "#fd8d3c",          // 35+
+          50, "#fc4e2a",          // 50+
+          70, "#e31a1c",          // 70+
+          90, "#800026",          // 90+
         ],
-        "fill-opacity": 0.75,
+        "fill-opacity": 0.45,
       },
     });
 
