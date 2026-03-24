@@ -3,11 +3,20 @@ A web platform that helps entrepreneurs and residents identify underserved neigh
 
 
 
-## Environment Setup
+## Getting Started
 
-To ensure all dependencies are consistent and avoid pip install library issues, follow these steps:
+Follow these steps to set up and run the project locally.
 
-1. Create/Activate Virtual Environment
+1. Clone the Repository
+
+```bash
+git clone https://github.com/Junh513/AmenityGap-NYC.git
+cd AmenityGap-NYC
+```
+
+---
+
+2. Create/Activate Virtual Environment
 
 ```bash
 python -m venv venv
@@ -16,7 +25,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 ---
 
-2. Install Dependencies
+3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -24,14 +33,44 @@ pip install -r requirements.txt
 
 ---
 
-3. Environment Variables
+4. Environment Variables
 
 Sensitive credentials are not stored in GitHub:
 
-- Create a `.env` file in your root directory.
+- Create a `.env` file in AMENITYGAP-NYC directory.
+- Create a separate `.env` file within ~\frontend\amenitygap-app.
 - Copy the structure from `.env.example.`
 - Fill in the Supabase URL and KEY with the values from our groupchat.
 
+---
+
+5. How to Run
+
+The application requires both the backend and frontend to be running simultaneously.
+
+**Start the backend:**
+```bash
+cd AmenityGap-NYC/backend
+npm install        # first time only
+npm run start
+```
+This initializes the Express server and connects to Supabase.
+
+**Start the frontend (in a separate terminal):**
+```bash
+cd AmenityGap-NYC/frontend/amenitygap-app
+npm install        # first time only
+npm run dev
+```
+Open the localhost link displayed in the terminal. Both servers must remain running for the app to function.
+
+---
+
+# For Repo Contributors Only
+
+Everything below is intended for active contributors to this repository.
+
+---
 
 ## Git Standards (Branching & PRs)
 
@@ -107,7 +146,7 @@ git push origin feature/your-feature-name
 
 * **Commit Small, Commit Often:** Don't wait until the entire feature is finished to commit. If you finish a single function or fix one bug, commit it! This prevents "Merge Hell" later on.
 
-* **Never Sit on Code:** If you’ve finished your work for the day, push it to your branch. Even if it’s not "ready to merge," having it on GitHub acts as a backup and lets the team see your progress.
+* **Never Sit on Code:** If you've finished your work for the day, push it to your branch. Even if it's not "ready to merge," having it on GitHub acts as a backup and lets the team see your progress.
 
 * **Sync Before You Start:** Every morning (or whenever you sit down to code), run `git checkout main` and `git pull origin main`. This ensures you aren't building on top of an outdated version of the project.
 
