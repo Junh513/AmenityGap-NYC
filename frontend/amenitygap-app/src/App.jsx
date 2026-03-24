@@ -24,9 +24,6 @@ function App() {
   const [resolution, setResolution] = useState(7)
   const [pendingResolution, setPendingResolution] = useState(7)
   const [layersReady, setLayersReady] = useState(false)
-  const [selectedAmenity, setSelectedAmenity] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeStyle, setActiveStyle] = useState('light')
 
   const handleResetView = () => {
     if (!mapRef.current) return
