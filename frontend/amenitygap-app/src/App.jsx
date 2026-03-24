@@ -26,19 +26,23 @@ function App() {
   const [layersReady, setLayersReady] = useState(false)
   const [selectedAmenity, setSelectedAmenity] = useState('')
   const [amenityTypes, setAmenityTypes] = useState([])
+  const [amenityCache, setAmenityCache] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
+  const [usingCache, setUsingCache] = useState(false)
 
   const handleResetView = () => {
     if (!mapRef.current) return
     mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
   }
 
-  const fetchAndApply = async (type) => {
+  const fetchAndApply = (type) => {
     if (!mapRef.current || !type) return
-    const res = await fetch(`http://localhost:3001/api/amenities?type=${type}`)
-    const amenities = await res.json()
+
+    const amenities = amenityCache[type]
+    if (!amenities) return
+
     console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
   }
@@ -53,7 +57,7 @@ function App() {
       if (selectedAmenity) fetchAndApply(selectedAmenity)
     })
   }
-  
+
   const handleDarkToggle = () => {
     const newDark = !darkMode
     setDarkMode(newDark)
@@ -61,7 +65,7 @@ function App() {
       applyMapStyle(newDark ? MAP_STYLES.dark : MAP_STYLES.light)
     }
   }
-  
+
   const handleSatelliteToggle = () => {
     const newSat = !satellite
     setSatellite(newSat)
@@ -87,10 +91,49 @@ function App() {
       setLayersReady(true)
     })
 
-    fetch('http://localhost:3001/api/amenity-types')
-      .then(res => res.json())
-      .then(types => setAmenityTypes(types))
-      .catch(err => console.error('Failed to fetch amenity types:', err))
+    const fetchAmenityTypes = async () => {
+      let types = []
+      let fromCache = false
+      try {
+        const res = await fetch('http://localhost:3001/api/amenity-types')
+        if (!res.ok) throw new Error('Backend error')
+        types = await res.json()
+        setAmenityTypes(types)
+      } catch (err) {
+        fromCache = true
+        console.warn('Backend unavailable, using cached types:', err.message)
+        try {
+          const fallback = await fetch('/cache/amenity-types.json')
+          types = await fallback.json()
+          setAmenityTypes(types)
+        } catch {
+          console.error('No cached amenity types available')
+          return
+        }
+      }
+
+      // Preload all amenity data
+      const cache = {}
+      for (const type of types) {
+        try {
+          const res = await fetch(`http://localhost:3001/api/amenities?type=${type}`)
+          if (!res.ok) throw new Error('Backend error')
+          cache[type] = await res.json()
+        } catch {
+          fromCache = true
+          try {
+            const fallback = await fetch(`/cache/${type}.json`)
+            cache[type] = await fallback.json()
+          } catch {
+            console.error(`No data for ${type}`)
+          }
+        }
+      }
+      setAmenityCache(cache)
+      setUsingCache(fromCache)
+    }
+
+    fetchAmenityTypes()
 
     return () => {
       if (mapRef.current) {
@@ -103,7 +146,7 @@ function App() {
   useEffect(() => {
     if (!layersReady) return
     fetchAndApply(selectedAmenity)
-  }, [selectedAmenity, layersReady])
+  }, [selectedAmenity, layersReady, amenityCache])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady) return
@@ -221,6 +264,11 @@ function App() {
 
         <main className="map-area">
           <div id="map-container" ref={mapContainerRef} />
+          {usingCache && (
+            <div className="cache-warning">
+              ⚠ Using cached data! — Live database is currently unavailable.
+            </div>
+          )}
         </main>
       </div>
     </div>

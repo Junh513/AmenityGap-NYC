@@ -218,3 +218,17 @@ input[type='range'] {
 .mapboxgl-popup-close-button:hover {
   background-color: transparent;
 }
+
+.cache-warning {
+  position: absolute;
+  top: 10px;
+  left: 1235px;
+  background-color: rgba(255, 180, 0, 0.9);
+  color: #333;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  z-index: 1;
+  pointer-events: none;
+}

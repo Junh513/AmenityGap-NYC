@@ -1,6 +1,7 @@
 # Ignore Data
 *.csv
 *.geojson
+backend/cache/
 
 # Python virtual environment
 .venv/
