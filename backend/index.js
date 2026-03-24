@@ -17,6 +17,21 @@ app.get('/', (req, res) => {
   res.send('Backend is running');
 });
 
+app.get('/api/amenity-types', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('amenities')
+      .select('amenity_type')
+
+    if (error) return res.status(500).json({ error: error.message })
+
+    const types = [...new Set(data.map(d => d.amenity_type))]
+    res.json(types)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.get('/api/amenities', async (req, res) => {
   const { type } = req.query;
   const limit = 1000;

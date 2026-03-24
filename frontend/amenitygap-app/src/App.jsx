@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { loadAllH3Layers, showResolution, setH3Opacity,  applyAmenityData} from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData } from './h3Layer'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6842]
@@ -24,21 +24,52 @@ function App() {
   const [resolution, setResolution] = useState(7)
   const [pendingResolution, setPendingResolution] = useState(7)
   const [layersReady, setLayersReady] = useState(false)
+  const [selectedAmenity, setSelectedAmenity] = useState('')
+  const [amenityTypes, setAmenityTypes] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [darkMode, setDarkMode] = useState(false)
+  const [satellite, setSatellite] = useState(false)
 
   const handleResetView = () => {
     if (!mapRef.current) return
     mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
   }
 
-  const handleStyleToggle = (styleName) => {
+  const fetchAndApply = async (type) => {
+    if (!mapRef.current || !type) return
+    const res = await fetch(`http://localhost:3001/api/amenities?type=${type}`)
+    const amenities = await res.json()
+    console.log(`${type} fetched: ${amenities.length}`)
+    applyAmenityData(mapRef.current, amenities, type)
+  }
+
+  const applyMapStyle = (style) => {
     if (!mapRef.current) return
-    setActiveStyle(styleName)
     setLayersReady(false)
-    mapRef.current.setStyle(MAP_STYLES[styleName])
+    mapRef.current.setStyle(style)
     mapRef.current.once('style.load', async () => {
       await loadAllH3Layers(mapRef.current)
       setLayersReady(true)
+      if (selectedAmenity) fetchAndApply(selectedAmenity)
     })
+  }
+  
+  const handleDarkToggle = () => {
+    const newDark = !darkMode
+    setDarkMode(newDark)
+    if (!satellite) {
+      applyMapStyle(newDark ? MAP_STYLES.dark : MAP_STYLES.light)
+    }
+  }
+  
+  const handleSatelliteToggle = () => {
+    const newSat = !satellite
+    setSatellite(newSat)
+    if (newSat) {
+      applyMapStyle(MAP_STYLES.satellite)
+    } else {
+      applyMapStyle(darkMode ? MAP_STYLES.dark : MAP_STYLES.light)
+    }
   }
 
   useEffect(() => {
@@ -54,11 +85,12 @@ function App() {
     mapRef.current.on('load', async () => {
       await loadAllH3Layers(mapRef.current)
       setLayersReady(true)
-
-      const res = await fetch('http://localhost:3001/api/amenities?type=laundry');
-      const amenities = await res.json();
-      applyAmenityData(mapRef.current, amenities)
     })
+
+    fetch('http://localhost:3001/api/amenity-types')
+      .then(res => res.json())
+      .then(types => setAmenityTypes(types))
+      .catch(err => console.error('Failed to fetch amenity types:', err))
 
     return () => {
       if (mapRef.current) {
@@ -67,6 +99,11 @@ function App() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (!layersReady) return
+    fetchAndApply(selectedAmenity)
+  }, [selectedAmenity, layersReady])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady) return
@@ -80,10 +117,8 @@ function App() {
 
   return (
     <div className="app-shell">
-      {/* TOP NAV BAR */}
       <header className="topbar">
         <div className="brand" spellCheck={false}>AmenityGap NYC</div>
-
         <nav className="topnav">
           {['about', 'map', 'data'].map((tab) => (
             <span
@@ -98,20 +133,20 @@ function App() {
       </header>
 
       <div className="content-area">
-        {/* SIDEBAR */}
         <aside className="sidebar-panel">
 
-          {/* Amenity Dropdown */}
           <div className="panel-card">
             <select
               className="amenity-select"
               value={selectedAmenity}
               onChange={(e) => setSelectedAmenity(e.target.value)}
             >
-              <option value="">Select Amenity ▾</option>
-              <option value="laundromats">Laundromats</option>
-              <option value="pharmacies">Pharmacies</option>
-              <option value="delis">Delis</option>
+              <option value="">Select Amenity</option>
+              {amenityTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </option>
+              ))}
             </select>
             {selectedAmenity && (
               <div className="selected-amenity-tag">
@@ -120,7 +155,6 @@ function App() {
             )}
           </div>
 
-          {/* Search Bar */}
           <div className="panel-card">
             <div className="search-bar">
               <input
@@ -133,7 +167,6 @@ function App() {
             </div>
           </div>
 
-          {/* Filters */}
           <div className="panel-card">
             <h3 className="panel-title italic">Filters</h3>
 
@@ -171,27 +204,26 @@ function App() {
             </button>
           </div>
 
-          {/* View Settings */}
           <div className="panel-card">
             <h3 className="panel-title italic">View Settings</h3>
-            {[
-              { key: 'satellite', label: 'Satellite' },
-              { key: 'light', label: 'Light' },
-              { key: 'dark', label: 'Dark' },
-            ].map(({ key, label }) => (
-              <div className="toggle-row" key={key}>
-                <span>{label}</span>
-                <div
-                  className={`toggle-switch ${activeStyle === key ? 'on' : ''}`}
-                  onClick={() => handleStyleToggle(key)}
-                />
-              </div>
-            ))}
+            <div className="toggle-row">
+              <span>Dark Mode</span>
+              <div
+                className={`toggle-switch ${darkMode ? 'on' : ''}`}
+                onClick={handleDarkToggle}
+              />
+            </div>
+            <div className="toggle-row">
+              <span>Satellite</span>
+              <div
+                className={`toggle-switch ${satellite ? 'on' : ''}`}
+                onClick={handleSatelliteToggle}
+              />
+            </div>
           </div>
 
         </aside>
 
-        {/* MAP */}
         <main className="map-area">
           <div id="map-container" ref={mapContainerRef} />
         </main>

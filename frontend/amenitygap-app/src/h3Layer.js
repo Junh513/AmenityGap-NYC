@@ -16,15 +16,15 @@ export async function loadAllH3Layers(map) {
       layout: { visibility: res === 7 ? "visible" : "none" },
       paint: {
         "fill-color": [
-        "step",
-        ["get", "count"],
-        "rgba(0,0,0,0)",       // 0 = transparent
-        1, "#fed976",           // 1+  yellow
-        3, "#fd8d3c",           // 3+  orange
-        5, "#e31a1c",           // 5+  red
-        8, "#bd0026",           // 8+  dark red
-        12, "#800026",          // 12+ deep crimson
-      ],
+          "step",
+          ["get", "count"],
+          "rgba(0,0,0,0)",
+          1, "#fed976",
+          3, "#fd8d3c",
+          5, "#e31a1c",
+          8, "#bd0026",
+          12, "#800026",
+        ],
         "fill-opacity": 0.75,
       },
     });
@@ -40,9 +40,12 @@ export async function loadAllH3Layers(map) {
     map.on("click", `h3-fill-${res}`, (e) => {
       const f = e.features?.[0];
       if (!f) return;
+      const amenityLabel = f.properties.amenityType
+        ? f.properties.amenityType.charAt(0).toUpperCase() + f.properties.amenityType.slice(1)
+        : "Amenities";
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>Laundromats:</b> ${f.properties.count}`)
+        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>${amenityLabel}:</b> ${f.properties.count}`)
         .addTo(map);
     });
 
@@ -51,7 +54,7 @@ export async function loadAllH3Layers(map) {
   }
 }
 
-export function applyAmenityData(map, amenities) {
+export function applyAmenityData(map, amenities, amenityType) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
     const source = map.getSource(sourceId);
@@ -59,17 +62,16 @@ export function applyAmenityData(map, amenities) {
 
     const h3Key = `h3_res${res}`;
 
-    // Count amenities per cell
     const counts = {};
     for (const a of amenities) {
       const cell = a[h3Key];
       if (cell) counts[cell] = (counts[cell] || 0) + 1;
     }
 
-    // Get current geojson and update counts
     const geojson = source._data;
     for (const feature of geojson.features) {
       feature.properties.count = counts[feature.properties.h3] || 0;
+      feature.properties.amenityType = amenityType || "";
     }
 
     source.setData(geojson);
