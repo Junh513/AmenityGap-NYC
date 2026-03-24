@@ -17,14 +17,15 @@ export async function loadAllH3Layers(map) {
       paint: {
         "fill-color": [
           "step",
-          ["get", "score"],
-          "#ffffcc",
-          10, "#a1dab4",
-          20, "#41b6c4",
-          30, "#2c7fb8",
-          40, "#253494",
+          ["get", "count"],
+          "rgba(0,0,0,0)",
+          1, "#fed976",
+          3, "#fd8d3c",
+          5, "#e31a1c",
+          8, "#bd0026",
+          12, "#800026",
         ],
-        "fill-opacity": 0.35,
+        "fill-opacity": 0.75,
       },
     });
 
@@ -39,14 +40,41 @@ export async function loadAllH3Layers(map) {
     map.on("click", `h3-fill-${res}`, (e) => {
       const f = e.features?.[0];
       if (!f) return;
+      const amenityLabel = f.properties.amenityType
+        ? f.properties.amenityType.charAt(0).toUpperCase() + f.properties.amenityType.slice(1)
+        : "Amenities";
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>Score:</b> ${f.properties.score}`)
+        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>${amenityLabel}:</b> ${f.properties.count}`)
         .addTo(map);
     });
 
     map.on("mouseenter", `h3-fill-${res}`, () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", `h3-fill-${res}`, () => (map.getCanvas().style.cursor = ""));
+  }
+}
+
+export function applyAmenityData(map, amenities, amenityType) {
+  for (const res of ALL_RESOLUTIONS) {
+    const sourceId = `h3-hexes-${res}`;
+    const source = map.getSource(sourceId);
+    if (!source) continue;
+
+    const h3Key = `h3_res${res}`;
+
+    const counts = {};
+    for (const a of amenities) {
+      const cell = a[h3Key];
+      if (cell) counts[cell] = (counts[cell] || 0) + 1;
+    }
+
+    const geojson = source._data;
+    for (const feature of geojson.features) {
+      feature.properties.count = counts[feature.properties.h3] || 0;
+      feature.properties.amenityType = amenityType || "";
+    }
+
+    source.setData(geojson);
   }
 }
 
