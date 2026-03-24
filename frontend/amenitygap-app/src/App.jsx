@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { loadAllH3Layers, showResolution, setH3Opacity } from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity,  applyAmenityData} from './h3Layer'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6842]
@@ -35,6 +35,10 @@ function App() {
     mapRef.current.on('load', async () => {
       await loadAllH3Layers(mapRef.current)
       setLayersReady(true)
+
+      const res = await fetch('http://localhost:3001/api/amenities?type=laundry');
+      const amenities = await res.json();
+      applyAmenityData(mapRef.current, amenities)
     })
 
     return () => {

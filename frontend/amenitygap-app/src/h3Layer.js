@@ -16,15 +16,16 @@ export async function loadAllH3Layers(map) {
       layout: { visibility: res === 7 ? "visible" : "none" },
       paint: {
         "fill-color": [
-          "step",
-          ["get", "score"],
-          "#ffffcc",
-          10, "#a1dab4",
-          20, "#41b6c4",
-          30, "#2c7fb8",
-          40, "#253494",
-        ],
-        "fill-opacity": 0.35,
+        "step",
+        ["get", "count"],
+        "rgba(0,0,0,0)",       // 0 = transparent
+        1, "#fed976",           // 1+  yellow
+        3, "#fd8d3c",           // 3+  orange
+        5, "#e31a1c",           // 5+  red
+        8, "#bd0026",           // 8+  dark red
+        12, "#800026",          // 12+ deep crimson
+      ],
+        "fill-opacity": 0.75,
       },
     });
 
@@ -41,12 +42,37 @@ export async function loadAllH3Layers(map) {
       if (!f) return;
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>Score:</b> ${f.properties.score}`)
+        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>Laundromats:</b> ${f.properties.count}`)
         .addTo(map);
     });
 
     map.on("mouseenter", `h3-fill-${res}`, () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", `h3-fill-${res}`, () => (map.getCanvas().style.cursor = ""));
+  }
+}
+
+export function applyAmenityData(map, amenities) {
+  for (const res of ALL_RESOLUTIONS) {
+    const sourceId = `h3-hexes-${res}`;
+    const source = map.getSource(sourceId);
+    if (!source) continue;
+
+    const h3Key = `h3_res${res}`;
+
+    // Count amenities per cell
+    const counts = {};
+    for (const a of amenities) {
+      const cell = a[h3Key];
+      if (cell) counts[cell] = (counts[cell] || 0) + 1;
+    }
+
+    // Get current geojson and update counts
+    const geojson = source._data;
+    for (const feature of geojson.features) {
+      feature.properties.count = counts[feature.properties.h3] || 0;
+    }
+
+    source.setData(geojson);
   }
 }
 

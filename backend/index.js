@@ -1,18 +1,52 @@
-import express from "express"
-import users from "./user.js"
+import express from 'express';
+import cors from 'cors';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const app = express()
+dotenv.config({ path: '../.env' });
 
-app.get("/",(req,res)=>{
-    res.send("Server is ready")
-})
+const app = express();
+app.use(cors());
 
-app.get("/api/user",(req,res)=>{
-    res.send(users)
-})
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
-const port = process.env.PORT || 3000
+app.get('/', (req, res) => {
+  res.send('Backend is running');
+});
 
-app.listen(port, ()=>{
-    console.log(`Serve at http://localhost:${port}`) 
-})
+app.get('/api/amenities', async (req, res) => {
+  const { type } = req.query;
+  const limit = 1000;
+  let offset = 0;
+  let allData = [];
+
+  try {
+    while (true) {
+      let query = supabase
+        .from('amenities')
+        .select('*')
+        .range(offset, offset + limit - 1);
+
+      if (type) query = query.eq('amenity_type', type);
+
+      const { data, error } = await query;
+      if (error) return res.status(500).json({ error: error.message });
+
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+
+      if (data.length < limit) break;
+      offset += limit;
+    }
+
+    res.json(allData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(3001, () => console.log('Backend running on http://localhost:3001'));
