@@ -16,7 +16,7 @@ cd AmenityGap-NYC
 
 ---
 
-2. Create/Activate Virtual Environment
+2. Create and activate Virtual Environment
 
 ```bash
 python -m venv venv
@@ -35,8 +35,6 @@ pip install -r requirements.txt
 
 4. Environment Variables
 
-Sensitive credentials are not stored in GitHub:
-
 - Create a `.env` file in AMENITYGAP-NYC directory. (Ignore this if you are not an active contributor)
 - Create a separate `.env` file within ~\frontend\amenitygap-app for `VITE_MAPBOX_TOKEN`.
 - For `VITE_MAPBOX_TOKEN`, create a free account at https://account.mapbox.com/ and copy your default public token.
@@ -47,9 +45,8 @@ Sensitive credentials are not stored in GitHub:
 
 5. How to Run
 
-The application requires both the backend and frontend to be running simultaneously.
-
 Note: If you are not an active contributor, skip the backend step. Cached data will be used instead.
+
 **Start the backend:**
 ```bash
 cd AmenityGap-NYC/backend
@@ -64,7 +61,7 @@ cd AmenityGap-NYC/frontend/amenitygap-app
 npm install        # first time only
 npm run dev
 ```
-Open the localhost link displayed in the terminal. Both servers must remain running for the app to function normally.
+Open the localhost link displayed in the terminal. Keep the backend up for live data.
 
 ---
 
