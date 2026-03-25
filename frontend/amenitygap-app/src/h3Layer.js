@@ -37,7 +37,7 @@ export async function loadAllH3Layers(map) {
       type: "line",
       source: `h3-hexes-${res}`,
       layout: { visibility: res === 7 ? "visible" : "none" },
-      paint: { "line-color": "#111", "line-width": 1 },
+      paint: { "line-color": "#ffffff", "line-width": 0.3, "line-opacity":0.5 },
     });
 
     map.on("click", `h3-fill-${res}`, (e) => {
