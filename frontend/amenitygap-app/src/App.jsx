@@ -31,12 +31,12 @@ function App() {
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
+  const markersRef = useRef([])
 
   const handleResetView = () => {
     if (!mapRef.current) return
     mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
   }
-  let markers = [] 
 
   const fetchAndApply = (type) => {
     if (!mapRef.current || !type) return
@@ -47,26 +47,24 @@ function App() {
     console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
 
-    //removes old pins
-    markers.forEach(m => m.remove())
-    markers = []
+    
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
 
     amenities.forEach((place) => {
-    if (!place.lat || !place.lng) return
-
-    const marker = new mapboxgl.Marker({ color: "#B91C1C", scale: 0.5})
-      .setLngLat([place.lng, place.lat])
-      .setPopup(
-        new mapboxgl.Popup().setHTML(
-          `<b>${place.name || type}</b><br/>${place.lat}, ${place.lng}`
-        )
-      )
-      .addTo(mapRef.current)
-
-    markers.push(marker)
-  })
+      if (!place.lat || !place.lng) return
     
-
+      const marker = new mapboxgl.Marker({ color: "#B91C1C", scale: 0.5 })
+        .setLngLat([place.lng, place.lat])
+        .setPopup(
+          new mapboxgl.Popup().setHTML(
+            `<b>${place.name || type}</b><br/>${place.lat}, ${place.lng}`
+          )
+        )
+        .addTo(mapRef.current)
+      
+      markersRef.current.push(marker)
+    })
   }
 
   const applyMapStyle = (style) => {
