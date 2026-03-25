@@ -37,8 +37,9 @@ pip install -r requirements.txt
 
 Sensitive credentials are not stored in GitHub:
 
-- Create a `.env` file in AMENITYGAP-NYC directory.
-- Create a separate `.env` file within ~\frontend\amenitygap-app.
+- Create a `.env` file in AMENITYGAP-NYC directory. (Ignore this if you are not an active contributor)
+- Create a separate `.env` file within ~\frontend\amenitygap-app for `VITE_MAPBOX_TOKEN`.
+- For `VITE_MAPBOX_TOKEN`, create a free account at https://account.mapbox.com/ and copy your default public token.
 - Copy the structure from `.env.example.`
 - Fill in the Supabase URL and KEY with the values from our groupchat.
 
@@ -48,6 +49,7 @@ Sensitive credentials are not stored in GitHub:
 
 The application requires both the backend and frontend to be running simultaneously.
 
+Note: If you are not an active contributor, skip the backend step. Cached data will be used instead.
 **Start the backend:**
 ```bash
 cd AmenityGap-NYC/backend
@@ -62,7 +64,7 @@ cd AmenityGap-NYC/frontend/amenitygap-app
 npm install        # first time only
 npm run dev
 ```
-Open the localhost link displayed in the terminal. Both servers must remain running for the app to function.
+Open the localhost link displayed in the terminal. Both servers must remain running for the app to function normally.
 
 ---
 
