@@ -41,6 +41,10 @@ export async function loadAllH3Layers(map) {
     });
 
     map.on("click", `h3-fill-${res}`, (e) => {
+      // Check if an amenity point is clicked
+      const points = map.queryRenderedFeatures(e.point, { layers: ['amenity-points'] })
+      if (points.length > 0) return
+
       const f = e.features?.[0];
       if (!f) return;
       const amenityLabel = f.properties.amenityType

@@ -31,7 +31,6 @@ function App() {
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
-  const markersRef = useRef([])
 
   const handleResetView = () => {
     if (!mapRef.current) return
@@ -47,24 +46,52 @@ function App() {
     console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
 
-    
-    markersRef.current.forEach(m => m.remove())
-    markersRef.current = []
-
-    amenities.forEach((place) => {
-      if (!place.lat || !place.lng) return
-    
-      const marker = new mapboxgl.Marker({ color: "#B91C1C", scale: 0.5 })
-        .setLngLat([place.lng, place.lat])
-        .setPopup(
-          new mapboxgl.Popup().setHTML(
-            `<b>${place.name || type}</b><br/>${place.lat}, ${place.lng}`
-          )
-        )
-        .addTo(mapRef.current)
-      
-      markersRef.current.push(marker)
+    // Remove old marker layer/source
+    if (mapRef.current.getLayer('amenity-points')) mapRef.current.removeLayer('amenity-points')
+    if (mapRef.current.getSource('amenity-markers')) mapRef.current.removeSource('amenity-markers')
+  
+    // Build GeoJSON from amenities
+    const geojson = {
+      type: 'FeatureCollection',
+      features: amenities
+        .filter(p => p.lat && p.lng)
+        .map(p => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+          properties: { name: p.name || type }
+        }))
+    }
+  
+    mapRef.current.addSource('amenity-markers', {
+      type: 'geojson',
+      data: geojson
     })
+  
+    mapRef.current.addLayer({
+      id: 'amenity-points',
+      type: 'circle',
+      source: 'amenity-markers',
+      minzoom: 13,
+      paint: {
+        'circle-color': '#B91C1C',
+        'circle-radius': 5,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#fff'
+      }
+    })
+  
+    // Click on point for popup, stop event from reaching H3 layer
+    mapRef.current.on('click', 'amenity-points', (e) => {
+      e.originalEvent.stopPropagation()
+      const f = e.features[0]
+      new mapboxgl.Popup()
+        .setLngLat(f.geometry.coordinates)
+        .setHTML(`<b>${f.properties.name}</b>`)
+        .addTo(mapRef.current)
+    })
+  
+    mapRef.current.on('mouseenter', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = 'pointer'))
+    mapRef.current.on('mouseleave', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = ''))
   }
 
   const applyMapStyle = (style) => {
