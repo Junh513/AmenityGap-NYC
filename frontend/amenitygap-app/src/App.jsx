@@ -6,6 +6,7 @@ import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
 const INITIAL_ZOOM = 10
+const MARKER_ZOOM_THRESHOLD = 13
 
 const MAP_STYLES = {
   light: 'mapbox://styles/mapbox/light-v11',
@@ -38,8 +39,20 @@ function App() {
     mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
   }
 
+  const updateMarkerVisibility = () => {
+    if (!mapRef.current) return
+    const zoom = mapRef.current.getZoom()
+    const visible = zoom >= MARKER_ZOOM_THRESHOLD
+    markersRef.current.forEach(m => {
+      m.getElement().style.display = visible ? 'block' : 'none'
+    })
+  }
+
+
   const fetchAndApply = (type) => {
+
     if (!mapRef.current || !type) return
+    const visible = mapRef.current.getZoom() >= MARKER_ZOOM_THRESHOLD
 
     const amenities = amenityCache[type]
     if (!amenities) return
@@ -62,7 +75,9 @@ function App() {
           )
         )
         .addTo(mapRef.current)
-      
+
+      marker.getElement().style.display = visible ? 'block' : 'none'
+
       markersRef.current.push(marker)
     })
   }
@@ -98,13 +113,14 @@ function App() {
 
   useEffect(() => {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
-
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: MAP_STYLES.dark,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
     })
+
+    mapRef.current.on('zoom', updateMarkerVisibility)
 
     mapRef.current.on('load', async () => {
       await loadAllH3Layers(mapRef.current)
