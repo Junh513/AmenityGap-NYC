@@ -46,11 +46,10 @@ function App() {
     console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
 
-    // Remove old marker layer/source
+    // This will remove markers from other amenities when the selection is switched
     if (mapRef.current.getLayer('amenity-points')) mapRef.current.removeLayer('amenity-points')
     if (mapRef.current.getSource('amenity-markers')) mapRef.current.removeSource('amenity-markers')
   
-    // Build GeoJSON from amenities
     const geojson = {
       type: 'FeatureCollection',
       features: amenities
@@ -80,7 +79,7 @@ function App() {
       }
     })
   
-    // Click on point for popup, stop event from reaching H3 layer
+    // Prevents overlapping from both amenity + H3 layer popups 
     mapRef.current.on('click', 'amenity-points', (e) => {
       e.originalEvent.stopPropagation()
       const f = e.features[0]
