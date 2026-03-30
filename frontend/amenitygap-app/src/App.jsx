@@ -36,7 +36,19 @@ function App() {
     if (!mapRef.current) return
     mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
   }
-  let markers = [] 
+
+  const markersRef = useRef([])
+  const MARKER_ZOOM_THRESHOLD = 13
+
+  const updateMarkerVisibility = () => {
+    if (!mapRef.current) return
+    const zoom = mapRef.current.getZoom()
+    const visible = zoom >= MARKER_ZOOM_THRESHOLD
+    markersRef.current.forEach(m => {
+      m.getElement().style.display = visible ? 'block' : 'none'
+    })
+  }
+  
 
   const fetchAndApply = (type) => {
     if (!mapRef.current || !type) return
@@ -47,23 +59,25 @@ function App() {
     console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
 
+  
     //removes old pins
-    markers.forEach(m => m.remove())
-    markers = []
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
+
+    const visible = mapRef.current.getZoom() >= MARKER_ZOOM_THRESHOLD
 
     amenities.forEach((place) => {
-    if (!place.lat || !place.lng) return
+      if (!place.lat || !place.lng) return
 
-    const marker = new mapboxgl.Marker({ color: "#B91C1C", scale: 0.5})
-      .setLngLat([place.lng, place.lat])
-      .setPopup(
-        new mapboxgl.Popup().setHTML(
+      const marker = new mapboxgl.Marker({ color: "#B91C1C", scale: 0.5 })
+        .setLngLat([place.lng, place.lat])
+        .setPopup(new mapboxgl.Popup().setHTML(
           `<b>${place.name || type}</b><br/>${place.lat}, ${place.lng}`
-        )
-      )
-      .addTo(mapRef.current)
+        ))
+        .addTo(mapRef.current)
 
-    markers.push(marker)
+      marker.getElement().style.display = visible ? 'block' : 'none'
+      markersRef.current.push(marker)
   })
     
 
@@ -111,6 +125,7 @@ function App() {
     mapRef.current.on('load', async () => {
       await loadAllH3Layers(mapRef.current)
       setLayersReady(true)
+      mapRef.current.on('zoom', updateMarkerVisibility)
     })
 
     const fetchAmenityTypes = async () => {
