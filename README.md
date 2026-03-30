@@ -36,10 +36,10 @@ pip install -r requirements.txt
 4. Environment Variables
 
 - Create a `.env` file in AMENITYGAP-NYC directory. (Ignore this if you are not an active contributor)
+- Fill the `.env` file with the Supabase URL and KEY values from our groupchat. (Ignore this if you are not an active contributor)
 - Create a separate `.env` file within ~\frontend\amenitygap-app for `VITE_MAPBOX_TOKEN`.
 - For `VITE_MAPBOX_TOKEN`, create a free account at https://account.mapbox.com/ and copy your default public token.
 - Copy the structure from `.env.example.`
-- Fill in the Supabase URL and KEY with the values from our groupchat.
 
 ---
 
