@@ -33,19 +33,18 @@ for (const resolution of [7, 8, 9]) {
     return false;
   });
 
-  const features = filtered.map((cell) => {
+  const features = filtered.map((cell, index) => {
     const boundary = cellToBoundary(cell, true);
-    const ring =
-      boundary[0][0] === boundary[boundary.length - 1][0] &&
-      boundary[0][1] === boundary[boundary.length - 1][1]
-        ? boundary
-        : [...boundary, boundary[0]];
+    const ring = boundary.map(([lng, lat]) => [lng, lat]);
 
-    const score = (parseInt(cell.slice(-3), 16) % 50) + 1;
+    if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
+      ring.push(ring[0]);
+    }
 
     return {
       type: "Feature",
-      properties: { h3: cell, score },
+      id: index,
+      properties: { h3: cell },
       geometry: { type: "Polygon", coordinates: [ring] },
     };
   });
