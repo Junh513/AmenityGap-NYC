@@ -78,27 +78,14 @@ function App() {
         'circle-stroke-color': '#fff'
       }
     })
-  
-    // Prevents overlapping from both amenity + H3 layer popups 
-    mapRef.current.on('click', 'amenity-points', (e) => {
-      e.originalEvent.stopPropagation()
-      const f = e.features[0]
-      new mapboxgl.Popup()
-        .setLngLat(f.geometry.coordinates)
-        .setHTML(`<b>${f.properties.name}</b>`)
-        .addTo(mapRef.current)
-    })
-  
-    mapRef.current.on('mouseenter', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = 'pointer'))
-    mapRef.current.on('mouseleave', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = ''))
   }
 
   const applyMapStyle = (style) => {
     if (!mapRef.current) return
     setLayersReady(false)
     mapRef.current.setStyle(style)
-    mapRef.current.once('style.load', async () => {
-      await loadAllH3Layers(mapRef.current)
+    mapRef.current.once('style.load', () => {
+      loadAllH3Layers(mapRef.current)
       setLayersReady(true)
       if (selectedAmenity) fetchAndApply(selectedAmenity)
     })
@@ -130,11 +117,26 @@ function App() {
       style: MAP_STYLES.dark,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
+      maxBounds: [[-74.35, 40.45], [-73.55, 40.95]],
+      renderWorldCopies: false,
     })
 
-    mapRef.current.on('load', async () => {
-      await loadAllH3Layers(mapRef.current)
+    mapRef.current.on('load', () => {
+      loadAllH3Layers(mapRef.current)
       setLayersReady(true)
+
+      // Register amenity point listeners once
+      mapRef.current.on('click', 'amenity-points', (e) => {
+        e.originalEvent.stopPropagation()
+        const f = e.features[0]
+        new mapboxgl.Popup()
+          .setLngLat(f.geometry.coordinates)
+          .setHTML(`<b>${f.properties.name}</b>`)
+          .addTo(mapRef.current)
+      })
+
+      mapRef.current.on('mouseenter', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = 'pointer'))
+      mapRef.current.on('mouseleave', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = ''))
     })
 
     const fetchAmenityTypes = async () => {
