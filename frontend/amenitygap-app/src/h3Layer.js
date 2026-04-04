@@ -72,7 +72,7 @@ export function loadAllH3Layers(map) {
       const count = f.state?.count || 0;
       const amenityType = f.state?.amenityType || '';
       const amenityLabel = amenityType
-        ? amenityType.charAt(0).toUpperCase() + amenityType.slice(1)
+        ? amenityType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
         : 'Amenities';
 
       new mapboxgl.Popup()
