@@ -117,7 +117,7 @@ function App() {
       style: MAP_STYLES.dark,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
-      maxBounds: [[-74.35, 40.45], [-73.55, 40.95]],
+      maxBounds: [[-74.55, 40.35], [-73.35, 41.05]],
       renderWorldCopies: false,
     })
 
