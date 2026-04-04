@@ -248,7 +248,7 @@ function App() {
               <option value="">Select Amenity</option>
               {amenityTypes.map((type) => (
                 <option key={type} value={type}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 </option>
               ))}
             </select>
