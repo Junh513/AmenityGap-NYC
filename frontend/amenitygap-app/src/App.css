@@ -255,3 +255,9 @@ input[type='range'] {
   z-index: 1;
   pointer-events: none;
 }
+
+.cache-warning.loading {
+  background-color: rgba(100, 160, 255, 0.9);
+  color: white;
+  left: 1430px;
+}

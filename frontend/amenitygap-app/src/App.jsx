@@ -31,6 +31,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const handleResetView = () => {
     if (!mapRef.current) return
@@ -140,6 +141,7 @@ function App() {
     })
 
     const fetchAmenityTypes = async () => {
+      setLoading(true)
       let types = []
       let fromCache = false
       try {
@@ -162,24 +164,35 @@ function App() {
 
       // Preload all amenity data
       const cache = {}
-      for (const type of types) {
-        try {
-          const res = await fetch(`http://localhost:3001/api/amenities?type=${type}`)
-          if (!res.ok) throw new Error('Backend error')
-          cache[type] = await res.json()
-        } catch {
-          fromCache = true
+      const results = await Promise.all(
+        types.map(async (type) => {
           try {
-            const fallback = await fetch(`/cache/${type}.json`)
-            cache[type] = await fallback.json()
+            const res = await fetch(`http://localhost:3001/api/amenities?type=${type}`)
+            if (!res.ok) throw new Error('Backend error')
+            return { type, data: await res.json() }
           } catch {
-            console.error(`No data for ${type}`)
+            try {
+              const fallback = await fetch(`/cache/${type}.json`)
+              return { type, data: await fallback.json() }
+            } catch {
+              console.error(`No data for ${type}`)
+              return { type, data: null }
+            }
           }
+        })
+      )
+
+      for (const { type, data } of results) {
+        if (data) {
+          cache[type] = data
+        } else {
+          fromCache = true
         }
       }
       setAmenityCache(cache)
       setUsingCache(fromCache)
-    }
+      setLoading(false)    
+      }
 
     fetchAmenityTypes()
 
@@ -312,9 +325,14 @@ function App() {
 
         <main className="map-area">
           <div id="map-container" ref={mapContainerRef} />
-          {usingCache && (
+          {loading && (
+            <div className="cache-warning loading">
+              ⏳ Loading amenity data...
+            </div>
+          )}
+          {!loading && usingCache && (
             <div className="cache-warning">
-              ⚠ Using cached data! — Live database is currently unavailable.
+              ⚠ Using cached data — live database is currently unavailable.
             </div>
           )}
         </main>
