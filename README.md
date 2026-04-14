@@ -151,7 +151,7 @@ git push origin feature/your-feature-name
 
 ---
 
-## Running the ETL
+## Running the Amenity ETL
 
 AmenityGap uses a unified Python ETL pipeline to manage our data. It handles Extraction (OpenStreetMap), Transformation (H3 Spatial Indexing), and Loading (Supabase Cloud DB).
 
@@ -180,3 +180,22 @@ AmenityGap uses a unified Python ETL pipeline to manage our data. It handles Ext
     # Returns a list of dictionaries with all NYC laundromats + H3 indices
     laundromats = get_amenities_by_type("laundry")
     ```
+
+---
+
+## Running the Population ETL
+AmenityGap uses a second ETL pipeline to estimate population for each H3 grid cell using 2020 U.S. Census data. It handles Extraction (Census Bureau API + NYC Open Data tract geometries), Transformation (area-weighted interpolation onto H3 grid), and Loading (Supabase).
+
+### How it works
+Census tract populations are sourced from the 2020 decennial census via the Census Bureau API and joined to official NYC tract geometries from NYC Open Data. An area-weighted interpolation algorithm disaggregates tract populations onto H3 hexagonal grid cells at resolutions 7, 8, and 9. If a hex cell overlaps multiple tracts, it receives a population contribution from each tract proportional to the area of overlap.
+
+99.68 - 99.99% of NYC's official 2020 population (8,804,190) is preserved depending on the resolution.
+
+### Syncing the Database
+
+To run the population ETL from the root directory: `python ./data_exploration/etl_population.py`
+
+This will populate three Supabase tables: `h3_population_res7`, `h3_population_res8`, and `h3_population_res9`, each mapping `h3_index → population`.
+
+
+**Required file:** `./data_exploration/data/2020_Census_Tracts_20260318.geojson` (NYC Open Data tract boundaries)
