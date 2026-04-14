@@ -94,8 +94,9 @@ def run():
 
         gdf_h3_pop = gdf_hex.merge(gdf_h3_pop, on='h3_index', how='left')
         gdf_h3_pop['population'] = gdf_h3_pop['population'].fillna(0)
-        out = gdf_h3_pop[gdf_h3_pop['population'] > 0][['h3_index', 'population']]
-        out['population'] = out['population'].round(1)
+        gdf_h3_pop['population'] = gdf_h3_pop['population'].round(1)
+        out = gdf_h3_pop[gdf_h3_pop['population'] >= 1][['h3_index', 'population']]
+        # out = gdf_h3_pop[gdf_h3_pop['population'] > 0][['h3_index', 'population']]
 
         print(f"  Total population: {out['population'].sum():,.0f} ({out['population'].sum() / 8_804_190 * 100:.2f}%)")
         print(f"  Total H3 cells: {out.shape[0]}")
