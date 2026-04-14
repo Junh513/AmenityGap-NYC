@@ -94,7 +94,7 @@ def run():
 
         gdf_h3_pop = gdf_hex.merge(gdf_h3_pop, on='h3_index', how='left')
         gdf_h3_pop['population'] = gdf_h3_pop['population'].fillna(0)
-        gdf_h3_pop['population'] = gdf_h3_pop['population'].round(1)
+        gdf_h3_pop['population'] = gdf_h3_pop['population'].round(0).astype(int)
         out = gdf_h3_pop[gdf_h3_pop['population'] >= 1][['h3_index', 'population']]
         # out = gdf_h3_pop[gdf_h3_pop['population'] > 0][['h3_index', 'population']]
 
