@@ -20,7 +20,7 @@ const TILESET_MAXZOOM = {
   9: 12,
 };
 
-export function loadAllH3Layers(map) {
+export function loadAllH3Layers(map, darkMode = true) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
 
@@ -52,7 +52,7 @@ export function loadAllH3Layers(map) {
           90, '#800026',
         ],
         'fill-opacity': 0.45,
-        'fill-antialias': false,
+        'fill-antialias': true,
       },
     });
 
@@ -63,7 +63,7 @@ export function loadAllH3Layers(map) {
       'source-layer': SOURCE_LAYER_NAMES[res],
       layout: { visibility: res === 7 ? 'visible' : 'none' },
       paint: {
-        'line-color': '#ffffff',
+        'line-color':darkMode ? '#ffffff' : '#888888',
         'line-width': 0.3,
         'line-opacity': 0.5,
       },
