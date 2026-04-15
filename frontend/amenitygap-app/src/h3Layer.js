@@ -14,7 +14,13 @@ const SOURCE_LAYER_NAMES = {
   9: 'h3-res-9-9yggdz',
 };
 
-export function loadAllH3Layers(map) {
+const TILESET_MAXZOOM = {
+  7: 10,
+  8: 10,
+  9: 12,
+};
+
+export function loadAllH3Layers(map, darkMode = true) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
 
@@ -22,6 +28,7 @@ export function loadAllH3Layers(map) {
       type: 'vector',
       url: `mapbox://${TILESET_IDS[res]}`,
       promoteId: 'h3',   // Use h3 cell ID as the feature ID for feature-state
+      maxzoom: TILESET_MAXZOOM[res],
     });
 
     map.addLayer({
@@ -45,7 +52,7 @@ export function loadAllH3Layers(map) {
           90, '#800026',
         ],
         'fill-opacity': 0.45,
-        'fill-antialias': false,
+        'fill-antialias': true,
       },
     });
 
@@ -56,7 +63,7 @@ export function loadAllH3Layers(map) {
       'source-layer': SOURCE_LAYER_NAMES[res],
       layout: { visibility: res === 7 ? 'visible' : 'none' },
       paint: {
-        'line-color': '#ffffff',
+        'line-color':darkMode ? '#ffffff' : '#888888',
         'line-width': 0.3,
         'line-opacity': 0.5,
       },

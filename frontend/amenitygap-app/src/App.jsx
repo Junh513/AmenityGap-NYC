@@ -82,12 +82,12 @@ function App() {
     })
   }
 
-  const applyMapStyle = (style) => {
+  const applyMapStyle = (style, isDark = darkMode) => {
     if (!mapRef.current) return
     setLayersReady(false)
     mapRef.current.setStyle(style)
     mapRef.current.once('style.load', () => {
-      loadAllH3Layers(mapRef.current)
+      loadAllH3Layers(mapRef.current, isDark)
       setLayersReady(true)
       if (selectedAmenity) fetchAndApply(selectedAmenity)
     })
@@ -97,7 +97,7 @@ function App() {
     const newDark = !darkMode
     setDarkMode(newDark)
     if (!satellite) {
-      applyMapStyle(newDark ? MAP_STYLES.dark : MAP_STYLES.light)
+      applyMapStyle(newDark ? MAP_STYLES.dark : MAP_STYLES.light, newDark)
     }
   }
 
@@ -119,12 +119,13 @@ function App() {
       style: MAP_STYLES.dark,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
+      minZoom: INITIAL_ZOOM,
       maxBounds: [[-74.55, 40.35], [-73.35, 41.05]],
       renderWorldCopies: false,
     })
 
     mapRef.current.on('load', () => {
-      loadAllH3Layers(mapRef.current)
+      loadAllH3Layers(mapRef.current, true)
       setLayersReady(true)
 
       // Register amenity point listeners once
