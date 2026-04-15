@@ -14,6 +14,12 @@ const SOURCE_LAYER_NAMES = {
   9: 'h3-res-9-9yggdz',
 };
 
+const TILESET_MAXZOOM = {
+  7: 10,
+  8: 10,
+  9: 12,
+};
+
 export function loadAllH3Layers(map) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
@@ -22,6 +28,7 @@ export function loadAllH3Layers(map) {
       type: 'vector',
       url: `mapbox://${TILESET_IDS[res]}`,
       promoteId: 'h3',   // Use h3 cell ID as the feature ID for feature-state
+      maxzoom: TILESET_MAXZOOM[res],
     });
 
     map.addLayer({
