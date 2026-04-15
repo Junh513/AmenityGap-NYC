@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData } from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData } from './h3Layer'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
@@ -27,6 +27,7 @@ function App() {
   const [selectedAmenity, setSelectedAmenity] = useState('')
   const [amenityTypes, setAmenityTypes] = useState([])
   const [amenityCache, setAmenityCache] = useState({})
+  const [popCache, setPopCache] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
@@ -207,7 +208,35 @@ function App() {
   useEffect(() => {
     if (!layersReady) return
     fetchAndApply(selectedAmenity)
-  }, [selectedAmenity, layersReady, amenityCache])
+    if (popCache[resolution]) applyPopulationData(mapRef.current, popCache[resolution], resolution)
+  }, [selectedAmenity, layersReady, amenityCache, resolution, popCache])
+
+  useEffect(() => {
+    if (!layersReady || !mapRef.current) return
+    if (popCache[resolution]) {
+      applyPopulationData(mapRef.current, popCache[resolution], resolution)
+      return
+    }
+    const load = async () => {
+      let rows
+      try {
+        const r = await fetch(`http://localhost:3001/api/population?res=${resolution}`)
+        if (!r.ok) throw new Error('backend error')
+        rows = await r.json()
+      } catch {
+        try {
+          const fb = await fetch(`/cache/population-res${resolution}.json`)
+          rows = await fb.json()
+        } catch {
+          console.warn(`No population data for res ${resolution}`)
+          return
+        }
+      }
+      setPopCache(prev => ({ ...prev, [resolution]: rows }))
+      applyPopulationData(mapRef.current, rows, resolution)
+    }
+    load()
+  }, [resolution, layersReady])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady) return

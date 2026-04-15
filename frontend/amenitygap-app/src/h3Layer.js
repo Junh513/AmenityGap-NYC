@@ -75,9 +75,12 @@ export function loadAllH3Layers(map) {
         ? amenityType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
         : 'Amenities';
 
+      const pop = f.state?.population;
+      const popText = pop != null ? `<br/><b>Population:</b> ${Math.round(pop).toLocaleString()}` : '';
+
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>${amenityLabel}:</b> ${count}`)
+        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>${amenityLabel}:</b> ${count}${popText}`)
         .addTo(map);
     });
   }
@@ -98,16 +101,37 @@ export function applyAmenityData(map, amenities, amenityType) {
       if (cell) counts[cell] = (counts[cell] || 0) + 1;
     }
 
-    // Reset all feature states first
-    map.removeFeatureState({ source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[res] });
+    // Clear count/amenityType on previously-counted cells only (preserve population)
+    const prevCounted = map._h3Counted?.[res] || new Set();
+    for (const cellId of prevCounted) {
+      map.setFeatureState(
+        { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[res], id: cellId },
+        { count: 0, amenityType: '' }
+      );
+    }
 
-    // Set count on each cell that has amenities
+    const nowCounted = new Set();
     for (const [cellId, count] of Object.entries(counts)) {
       map.setFeatureState(
         { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[res], id: cellId },
         { count, amenityType: amenityType || '' }
       );
+      nowCounted.add(cellId);
     }
+
+    map._h3Counted = map._h3Counted || {};
+    map._h3Counted[res] = nowCounted;
+  }
+}
+
+export function applyPopulationData(map, popRows, resolution) {
+  const sourceId = `h3-hexes-${resolution}`;
+  if (!map.getSource(sourceId)) return;
+  for (const { h3_index, population } of popRows) {
+    map.setFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: h3_index },
+      { population }
+    );
   }
 }
 
