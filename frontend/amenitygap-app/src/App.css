@@ -21,9 +21,9 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color:#2e6a8e;
+  background-color:#5f9ea0;
   padding: 12px 24px;
-  color:#eef6ff;
+  color:#f5f9f8;
   flex-shrink: 0;
 }
 
@@ -33,7 +33,7 @@ html, body, #root {
   letter-spacing: 2.0px;
   font-family: 'Bebas Neue', cursive;
   text-underline-offset: 4px;
-  color: #eef6ff;
+  color: #f5f9f8;
 }
 
 .topnav {
@@ -62,7 +62,7 @@ html, body, #root {
 
 .sidebar-panel {
   width: 280px;
-  background-color: #f4f8fc;
+  background-color: #f2f5f4;
   overflow-y: auto;
   padding: 12px;
   display: flex;
@@ -72,10 +72,10 @@ html, body, #root {
 }
 
 .panel-card {
-  background-color: #e8f0f8;
+  background-color: #e8efed;
   border-radius: 10px;
   padding: 12px;
-  border: 1px solid #ccdce8;
+  border: 1px solid #cdddd8;
 }
 
 .panel-title {
@@ -84,8 +84,8 @@ html, body, #root {
   margin-bottom: 10px;
   text-align: center;
   font-style: italic;
-  color: #1a4060;
-  background-color: #c8dff0;
+  color: #1a3d38;
+  background-color: #c8dbd6;
   border-radius: 6px;
   padding: 4px;
 }
@@ -95,11 +95,11 @@ html, body, #root {
  width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 2px solid #5a90b8;
+  border: 2px solid #7ab8b0;
   font-size: 0.95rem;
   cursor: pointer;
   background-color: white;
-  color: #2a3a48;
+  color: #2a3a38;
   font-weight: bold;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a90b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
@@ -112,8 +112,8 @@ html, body, #root {
 
 .amenity-select:focus {
   outline: none;
-  border-color: #2e6a8e;
-  box-shadow: 0 0 0 3px rgba(90,144,184,0.2);
+  border-color: #5f9ea0;
+  box-shadow: 0 0 0 3px rgba(95,158,160,0.2);
 }
 
 .selected-amenity-tag {
@@ -162,7 +162,7 @@ html, body, #root {
 
 input[type='range'] {
   width: 100%;
-  accent-color: #5a90b8;
+  accent-color: #7ab8b0;
 }
 
 .reset-btn {
@@ -170,7 +170,7 @@ input[type='range'] {
   padding: 8px;
   border-radius: 8px;
   border: none;
-  background-color: #5a90b8;
+  background-color: #7ab8b0;
   color: white;
   font-weight: bold;
   cursor: pointer;
@@ -179,7 +179,7 @@ input[type='range'] {
 }
 
 .reset-btn:hover {
-  background-color: #2e6a8e;
+  background-color: #5f9ea0;
 }
 
 /* VIEW SETTINGS TOGGLES */
@@ -195,7 +195,7 @@ input[type='range'] {
 .toggle-switch {
   width: 40px;
   height: 22px;
-  background-color: #c0d4e4;
+  background-color: #c0d4d0;
   border-radius: 11px;
   cursor: pointer;
   position: relative;
@@ -215,7 +215,7 @@ input[type='range'] {
 }
 
 .toggle-switch.on {
-  background-color: #5a90b8;
+  background-color: #7ab8b0;
 }
 
 .toggle-switch.on::after {
