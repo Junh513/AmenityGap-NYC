@@ -67,6 +67,8 @@ def run():
 
     # === Calculate pop for res 7, 8, 9 === #
 
+    H3_AREA_KM2 = {7: 5.1613, 8: 0.7373, 9: 0.1053}
+
     for res in [7, 8, 9]:
         print(f"\nProcessing H3 resolution {res}...")
         
@@ -94,8 +96,12 @@ def run():
 
         gdf_h3_pop = gdf_hex.merge(gdf_h3_pop, on='h3_index', how='left')
         gdf_h3_pop['population'] = gdf_h3_pop['population'].fillna(0)
+
+        # Calculate pop density km2 
+        gdf_h3_pop['density'] = (gdf_h3_pop['population'] / H3_AREA_KM2[res]).round(2)
+
         gdf_h3_pop['population'] = gdf_h3_pop['population'].round(0).astype(int)
-        out = gdf_h3_pop[gdf_h3_pop['population'] >= 1][['h3_index', 'population']]
+        out = gdf_h3_pop[gdf_h3_pop['population'] >= 1][['h3_index', 'population', 'density']]
         # out = gdf_h3_pop[gdf_h3_pop['population'] > 0][['h3_index', 'population']]
 
         print(f"  Total population: {out['population'].sum():,.0f} ({out['population'].sum() / 8_804_190 * 100:.2f}%)")
