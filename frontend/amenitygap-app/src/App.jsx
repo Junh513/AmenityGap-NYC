@@ -142,7 +142,7 @@ function App() {
       mapRef.current.on('mouseleave', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = ''))
     })
 
-    const fetchAmenityTypes = async () => {
+    const fetchAmenityPop = async () => {
       setLoading(true)
       let types = []
       let fromCache = false
@@ -191,12 +191,39 @@ function App() {
           fromCache = true
         }
       }
+
       setAmenityCache(cache)
       setUsingCache(fromCache)
+
+      // Preload population data for all resolutions
+      const popData = {}
+      const popResults = await Promise.all(
+        [7, 8, 9].map(async (res) => {
+          try {
+            const r = await fetch(`http://localhost:3001/api/population?res=${res}`)
+            if (!r.ok) throw new Error('Backend error')
+            return { res, data: await r.json() }
+          } catch {
+            try {
+              const fb = await fetch(`/cache/population-res${res}.json`)
+              return { res, data: await fb.json() }
+            } catch {
+              console.error(`No population data for res ${res}`)
+              return { res, data: null }
+            }
+          }
+        })
+      )
+
+      for (const { res, data } of popResults) {
+        if (data) popData[res] = data
+      }
+
+      setPopCache(popData)
       setLoading(false)    
       }
 
-    fetchAmenityTypes()
+    fetchAmenityPop()
 
     return () => {
       if (mapRef.current) {
@@ -211,33 +238,6 @@ function App() {
     fetchAndApply(selectedAmenity)
     if (popCache[resolution]) applyPopulationData(mapRef.current, popCache[resolution], resolution)
   }, [selectedAmenity, layersReady, amenityCache, resolution, popCache])
-
-  useEffect(() => {
-    if (!layersReady || !mapRef.current) return
-    if (popCache[resolution]) {
-      applyPopulationData(mapRef.current, popCache[resolution], resolution)
-      return
-    }
-    const load = async () => {
-      let rows
-      try {
-        const r = await fetch(`http://localhost:3001/api/population?res=${resolution}`)
-        if (!r.ok) throw new Error('backend error')
-        rows = await r.json()
-      } catch {
-        try {
-          const fb = await fetch(`/cache/population-res${resolution}.json`)
-          rows = await fb.json()
-        } catch {
-          console.warn(`No population data for res ${resolution}`)
-          return
-        }
-      }
-      setPopCache(prev => ({ ...prev, [resolution]: rows }))
-      applyPopulationData(mapRef.current, rows, resolution)
-    }
-    load()
-  }, [resolution, layersReady])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady) return
