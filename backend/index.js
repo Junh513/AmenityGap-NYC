@@ -143,5 +143,22 @@ app.get('/api/population', async (req, res) => {
   }
 });
 
+app.get('/api/cell-metadata', async (req, res) => {
+  const cacheFile = path.join(CACHE_DIR, 'cell-metadata.json')
+  const frontendFile = path.join(FRONTEND_CACHE_DIR, 'cell-metadata.json')
+
+  // Try backend cache first, then frontend public
+  if (fs.existsSync(cacheFile)) {
+    const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'))
+    syncToFrontend('cell-metadata.json')
+    return res.json(cached)
+  }
+  if (fs.existsSync(frontendFile)) {
+    const cached = JSON.parse(fs.readFileSync(frontendFile, 'utf-8'))
+    return res.json(cached)
+  }
+  res.status(500).json({ error: 'No metadata available' })
+})
+
 
 app.listen(3001, () => console.log('Backend running on http://localhost:3001'));
