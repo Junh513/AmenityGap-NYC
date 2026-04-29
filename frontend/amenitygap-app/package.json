@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@turf/boolean-point-in-polygon": "^7.3.4",
-    "@turf/helpers": "^7.3.4",
+    "@turf/area": "^7.3.5",
+    "@turf/boolean-point-in-polygon": "^7.3.5",
+    "@turf/helpers": "^7.3.5",
+    "@turf/intersect": "^7.3.5",
     "h3-js": "^4.4.0",
     "mapbox-gl": "^3.19.1",
     "react": "^19.2.0",
