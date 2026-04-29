@@ -87,7 +87,7 @@ export function loadAllH3Layers(map, darkMode = true) {
 
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>${amenityLabel}:</b> ${count}${popText}`)
+        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>Borough:</b> ${f.properties.borough || 'Unknown'}<br/><b>Land:</b> ${Math.round((f.properties.land_fraction || 0) * 100)}%<br/><b>${amenityLabel}:</b> ${count}${popText}`)
         .addTo(map);
     });
   }
