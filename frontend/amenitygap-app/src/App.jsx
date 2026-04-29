@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData } from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyOpportunityScores } from './h3Layer'
+import { calculateOpportunityScores } from './scoring'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
@@ -14,9 +15,27 @@ const MAP_STYLES = {
   transit: 'mapbox://styles/mapbox/standard',
 }
 
+const DEFAULT_WEIGHTS = {
+  laundry: 2000,
+  deli: 1500,
+  pharmacy: 3000,
+  barber: 2500,
+  gas_station: 5000,
+}
+
+const DEFAULT_BOROUGH_MULTIPLIERS = {
+  Manhattan: 2.5,
+  Brooklyn: 1.0,
+  Queens: 1.0,
+  Bronx: 1.0,
+  'Staten Island': 0.8,
+}
+
 function App() {
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
+  const weightsBtnRef = useRef(null)
+  const boroughBtnRef = useRef(null)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
@@ -34,6 +53,26 @@ function App() {
   const [usingCache, setUsingCache] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Opportunity score states
+  const [amenityWeights, setAmenityWeights] = useState(DEFAULT_WEIGHTS)
+  const [boroughMultipliers, setBoroughMultipliers] = useState(DEFAULT_BOROUGH_MULTIPLIERS)
+  const [minLandFraction, setMinLandFraction] = useState(0.25)
+  const [minPopulation, setMinPopulation] = useState(500)
+  const [weightsPopupPos, setWeightsPopupPos] = useState(null)
+  const [boroughPopupPos, setBoroughPopupPos] = useState(null)
+  const [cellMetadata, setCellMetadata] = useState(null)
+
+  const toggleFlyout = (btnRef, currentPos, setPos, closeOthers = []) => {
+    if (currentPos) {
+      setPos(null)
+      return
+    }
+    closeOthers.forEach(close => close(null))
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setPos({ top: rect.top, left: rect.right + 8 })
+  }
+
   const handleResetView = () => {
     if (!mapRef.current) return
     mapRef.current.flyTo({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM })
@@ -45,13 +84,11 @@ function App() {
     const amenities = amenityCache[type]
     if (!amenities) return
 
-    console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
 
-    // This will remove markers from other amenities when the selection is switched
     if (mapRef.current.getLayer('amenity-points')) mapRef.current.removeLayer('amenity-points')
     if (mapRef.current.getSource('amenity-markers')) mapRef.current.removeSource('amenity-markers')
-  
+
     const geojson = {
       type: 'FeatureCollection',
       features: amenities
@@ -62,12 +99,12 @@ function App() {
           properties: { name: p.name || type }
         }))
     }
-  
+
     mapRef.current.addSource('amenity-markers', {
       type: 'geojson',
       data: geojson
     })
-  
+
     mapRef.current.addLayer({
       id: 'amenity-points',
       type: 'circle',
@@ -128,7 +165,6 @@ function App() {
       loadAllH3Layers(mapRef.current, true)
       setLayersReady(true)
 
-      // Register amenity point listeners once
       mapRef.current.on('click', 'amenity-points', (e) => {
         e.originalEvent.stopPropagation()
         const f = e.features[0]
@@ -164,7 +200,6 @@ function App() {
         }
       }
 
-      // Preload all amenity data
       const cache = {}
       const results = await Promise.all(
         types.map(async (type) => {
@@ -195,7 +230,15 @@ function App() {
       setAmenityCache(cache)
       setUsingCache(fromCache)
 
-      // Preload population data for all resolutions
+      // Initialize weights for any new amenity types
+      setAmenityWeights(prev => {
+        const updated = { ...prev }
+        for (const type of types) {
+          if (!(type in updated)) updated[type] = 2000
+        }
+        return updated
+      })
+
       const popData = {}
       const popResults = await Promise.all(
         [7, 8, 9].map(async (res) => {
@@ -219,9 +262,25 @@ function App() {
         if (data) popData[res] = data
       }
 
-      setPopCache(popData)
-      setLoading(false)    
+      // Load cell metadata
+      try {
+        const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
+        if (!metaRes.ok) throw new Error('Backend error')
+        const metaData = await metaRes.json()
+        setCellMetadata(metaData)
+      } catch (err) {
+        console.error('Metadata fetch error:', err)
+        try {
+          const fb = await fetch('/cache/cell-metadata.json')
+          setCellMetadata(await fb.json())
+        } catch {
+          console.error('No cell metadata available')
+        }
       }
+
+      setPopCache(popData)
+      setLoading(false)
+    }
 
     fetchAmenityPop()
 
@@ -248,6 +307,29 @@ function App() {
     if (!mapRef.current || !layersReady) return
     setH3Opacity(mapRef.current, opacity)
   }, [opacity, layersReady])
+
+  useEffect(() => {
+    if (!mapRef.current || !layersReady || !selectedAmenity || !cellMetadata) return
+    if (!amenityCache[selectedAmenity] || !popCache[resolution]) return
+
+    const scores = calculateOpportunityScores(
+      amenityCache[selectedAmenity],
+      popCache[resolution],
+      selectedAmenity,
+      resolution,
+      {
+        amenityWeights,
+        boroughMultipliers,
+        minLandFraction,
+        minPopulation,
+        cellMetadata,
+      }
+    )
+
+    applyOpportunityScores(mapRef.current, scores, resolution)
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation])
+
+
 
   return (
     <div className="app-shell">
@@ -293,6 +375,67 @@ function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <span className="search-icon">🔍</span>
+            </div>
+          </div>
+
+          {/* Opportunity Score Panel */}
+          <div className="panel-card">
+            <h3 className="panel-title italic">Opportunity Score</h3>
+
+            {/* Amenity Weights */}
+            <div className="score-row">
+              <span className="score-label">Amenity Weights</span>
+              <button
+                ref={weightsBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Borough Multipliers */}
+            <div className="score-row">
+              <span className="score-label">Borough Multipliers</span>
+              <button
+                ref={boroughBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Min Land Fraction */}
+            <div className="control-group">
+              <label className="control-label">
+                Min Land: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="100" step="1"
+                  value={Math.round(minLandFraction * 100)}
+                  onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
+                />%
+              </label>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={Math.round(minLandFraction * 100)}
+                onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
+              />
+            </div>
+
+            {/* Min Population */}
+            <div className="control-group">
+              <label className="control-label">
+                Min Population: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="50000" step="100"
+                  value={minPopulation}
+                  onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
+                />
+              </label>
+              <input
+                type="range" min="0" max="10000" step="100"
+                value={minPopulation}
+                onChange={(e) => setMinPopulation(Number(e.target.value))}
+              />
             </div>
           </div>
 
@@ -367,6 +510,78 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Amenity Weights Popup */}
+      {weightsPopupPos && (
+        <div className="popup-flyout" style={{ top: weightsPopupPos.top, left: weightsPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Amenity Weights</h3>
+              <button className="popup-close" onClick={() => setWeightsPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">People per 1 amenity (ideal ratio)</p>
+            {Object.entries(amenityWeights).map(([type, value]) => (
+              <div className="popup-slider-group" key={type}>
+                <label className="popup-label">
+                  {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                </label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="500" max="10000" step="100"
+                    value={value}
+                    onChange={(e) => setAmenityWeights(prev => ({ ...prev, [type]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="100" max="50000" step="100"
+                    value={value}
+                    onChange={(e) => setAmenityWeights(prev => ({ ...prev, [type]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setAmenityWeights(DEFAULT_WEIGHTS)}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Borough Multipliers Popup */}
+      {boroughPopupPos && (
+        <div className="popup-flyout" style={{ top: boroughPopupPos.top, left: boroughPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Borough Multipliers</h3>
+              <button className="popup-close" onClick={() => setBoroughPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">Population demand multiplier per borough</p>
+            {Object.entries(boroughMultipliers).map(([borough, value]) => (
+              <div className="popup-slider-group" key={borough}>
+                <label className="popup-label">{borough}</label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="0.1" max="5.0" step="0.1"
+                    value={value}
+                    onChange={(e) => setBoroughMultipliers(prev => ({ ...prev, [borough]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="0.1" max="10" step="0.1"
+                    value={value}
+                    onChange={(e) => setBoroughMultipliers(prev => ({ ...prev, [borough]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setBoroughMultipliers(DEFAULT_BOROUGH_MULTIPLIERS)}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
