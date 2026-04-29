@@ -27,7 +27,7 @@ export function loadAllH3Layers(map, darkMode = true) {
     map.addSource(sourceId, {
       type: 'vector',
       url: `mapbox://${TILESET_IDS[res]}`,
-      promoteId: 'h3',   // Use h3 cell ID as the feature ID for feature-state
+      promoteId: 'h3',
       maxzoom: TILESET_MAXZOOM[res],
     });
 
@@ -39,17 +39,42 @@ export function loadAllH3Layers(map, darkMode = true) {
       layout: { visibility: res === 7 ? 'visible' : 'none' },
       paint: {
         'fill-color': [
-          'step',
-          ['coalesce', ['feature-state', 'count'], 0],
-          'rgba(0,0,0,0)',
-          1, '#e6d280',
-          5, '#d4b44a',
-          10, '#c49620',
-          20, '#d4820a',
-          35, '#fd8d3c',
-          50, '#fc4e2a',
-          70, '#e31a1c',
-          90, '#800026',
+          'case',
+          // Greyed out: score set to -999
+          ['==', ['coalesce', ['feature-state', 'score'], -998], -999],
+          'rgba(80, 80, 80, 0.4)',
+          // Has valid score: color by opportunity
+          ['!=', ['coalesce', ['feature-state', 'score'], -998], -998],
+          [
+            'interpolate',
+            ['linear'],
+            ['feature-state', 'score'],
+            -100, '#67001f',
+            -75, '#d73027',
+            -50, '#f46d43',
+            -30, '#fdae61',
+            -10, '#fee08b',
+            0, '#ffffbf',
+            10, '#d9ef8b',
+            30, '#91cf60',
+            50, '#66bd63',
+            75, '#1a9850',
+            100, '#006837',
+          ],
+          // No score yet: amenity count fallback
+          [
+            'step',
+            ['coalesce', ['feature-state', 'count'], 0],
+            'rgba(0,0,0,0)',
+            1, '#e6d280',
+            5, '#d4b44a',
+            10, '#c49620',
+            20, '#d4820a',
+            35, '#fd8d3c',
+            50, '#fc4e2a',
+            70, '#e31a1c',
+            90, '#800026',
+          ],
         ],
         'fill-opacity': 0.45,
         'fill-antialias': true,
@@ -63,7 +88,7 @@ export function loadAllH3Layers(map, darkMode = true) {
       'source-layer': SOURCE_LAYER_NAMES[res],
       layout: { visibility: res === 7 ? 'visible' : 'none' },
       paint: {
-        'line-color':darkMode ? '#ffffff' : '#888888',
+        'line-color': darkMode ? '#ffffff' : '#888888',
         'line-width': 0.3,
         'line-opacity': 0.5,
       },
@@ -85,9 +110,17 @@ export function loadAllH3Layers(map, darkMode = true) {
       const pop = f.state?.population;
       const popText = pop != null ? `<br/><b>Population:</b> ${Math.round(pop).toLocaleString()}` : '';
 
+      const score = f.state?.score;
+      let scoreText = '';
+      if (score === -999) {
+        scoreText = '<br/><b>Opportunity:</b> <i>Excluded</i>';
+      } else if (score != null) {
+        scoreText = `<br/><b>Opportunity Score:</b> ${score}`;
+      }
+
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>Borough:</b> ${f.properties.borough || 'Unknown'}<br/><b>Land:</b> ${Math.round((f.properties.land_fraction || 0) * 100)}%<br/><b>${amenityLabel}:</b> ${count}${popText}`)
+        .setHTML(`${scoreText}<br/><b>H3:</b> ${f.properties.h3}<br/><b>Borough:</b> ${f.properties.borough || 'Unknown'}<br/><b>Land:</b> ${Math.round((f.properties.land_fraction || 0) * 100)}%<br/><b>${amenityLabel}:</b> ${count}${popText}`)
         .addTo(map);
     });
   }
@@ -101,14 +134,12 @@ export function applyAmenityData(map, amenities, amenityType) {
 
     const h3Key = `h3_res${res}`;
 
-    // Count amenities per cell
     const counts = {};
     for (const a of amenities) {
       const cell = a[h3Key];
       if (cell) counts[cell] = (counts[cell] || 0) + 1;
     }
 
-    // Clear count/amenityType on previously-counted cells only (preserve population)
     const prevCounted = map._h3Counted?.[res] || new Set();
     for (const cellId of prevCounted) {
       map.setFeatureState(
@@ -129,6 +160,34 @@ export function applyAmenityData(map, amenities, amenityType) {
     map._h3Counted = map._h3Counted || {};
     map._h3Counted[res] = nowCounted;
   }
+}
+
+export function applyOpportunityScores(map, scores, resolution) {
+  const sourceId = `h3-hexes-${resolution}`;
+  if (!map.getSource(sourceId)) return;
+
+  // Clear previous scores
+  const prevScored = map._h3Scored?.[resolution] || new Set();
+  for (const cellId of prevScored) {
+    map.removeFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: cellId },
+      'score'
+    );
+  }
+
+  const nowScored = new Set();
+  for (const [cellId, score] of Object.entries(scores)) {
+    // null = doesn't meet criteria → grey out with -999
+    const val = score === null ? -999 : score;
+    map.setFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: cellId },
+      { score: val }
+    );
+    nowScored.add(cellId);
+  }
+
+  map._h3Scored = map._h3Scored || {};
+  map._h3Scored[resolution] = nowScored;
 }
 
 export function applyPopulationData(map, popRows, resolution) {
