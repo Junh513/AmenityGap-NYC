@@ -87,16 +87,20 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
         .setHTML(`
           <h3 style="text-align:center; margin-bottom:8px; font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.4); padding-bottom:6px;">Neighborhood Info</h3>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b>H3 Cell</b> <span>${f.properties.h3}</span>
+            <b>H3 Cell:</b> <span>${f.properties.h3}</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b>Amenity Type</b> <span>${amenityLabel}</span>
+            <b>Amenity Type:</b> <span>${amenityLabel}</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b># of Amenity</b> <span>${count}</span>
+            <b># of Amenity:</b> <span>${count}</span>
           </div>
-          <div style="display:flex; justify-content:space-between;">
-            <b>Population</b> <span>Coming soon</span>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Population:</b> 
+          </div>
+
+          <div style="display:flex; flex-direction:column; margin-bottom:4px;">
+            <b>Opportunity Score:</b>
           </div>
         `)
         .addTo(map);
@@ -145,3 +149,4 @@ export function setH3Opacity(map, opacity) {
     if (map.getLayer(`h3-fill-${res}`)) map.setPaintProperty(`h3-fill-${res}`, 'fill-opacity', opacity);
   }
 }
+
