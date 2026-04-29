@@ -119,6 +119,6 @@ for (const resolution of [7, 8, 9]) {
   console.log(`Resolution ${resolution}: ${filtered.length} cells written`);
 }
 
-writeFileSync(`public/cell-metadata.json`, JSON.stringify(allMetadata));
+writeFileSync(`backend/cache/cell-metadata.json`, JSON.stringify(allMetadata));
 console.log(`\nCell metadata saved: ${Object.keys(allMetadata).length} total cells`);
 console.log("Done");
