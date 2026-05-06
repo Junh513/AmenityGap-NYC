@@ -53,7 +53,6 @@ function App() {
   const [usingCache, setUsingCache] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Opportunity score states
   const [amenityWeights, setAmenityWeights] = useState(DEFAULT_WEIGHTS)
   const [boroughMultipliers, setBoroughMultipliers] = useState(DEFAULT_BOROUGH_MULTIPLIERS)
   const [minLandFraction, setMinLandFraction] = useState(0.25)
@@ -124,7 +123,7 @@ function App() {
     setLayersReady(false)
     mapRef.current.setStyle(style)
     mapRef.current.once('style.load', () => {
-      loadAllH3Layers(mapRef.current, isDark)
+      loadAllH3Layers(mapRef.current, isDark,)
       setLayersReady(true)
       if (selectedAmenity) fetchAndApply(selectedAmenity)
     })
@@ -309,6 +308,11 @@ function App() {
   }, [opacity, layersReady])
 
   useEffect(() => {
+    if (activeTab !== 'map' || !mapRef.current) return
+    requestAnimationFrame(() => mapRef.current?.resize())
+  }, [activeTab])
+
+  useEffect(() => {
     if (!mapRef.current || !layersReady || !selectedAmenity || !cellMetadata) return
     if (!amenityCache[selectedAmenity] || !popCache[resolution]) return
 
@@ -349,7 +353,8 @@ function App() {
       </header>
 
       <div className="content-area">
-        <aside className="sidebar-panel">
+        <aside className="sidebar-panel" style={{display: activeTab === 'map' ? 'flex' : 'none'}}>
+
 
           <div className="panel-card">
             <select
@@ -440,7 +445,7 @@ function App() {
           </div>
 
           <div className="panel-card">
-            <h3 className="panel-title italic">Filters</h3>
+            <h3 className="panel-title italic">Map Controls</h3>
 
             <div className="control-group">
               <label className="control-label">Show H3 Grid</label>
@@ -477,6 +482,34 @@ function App() {
           </div>
 
           <div className="panel-card">
+            <h3 className="panel-title italic">Data Filters</h3>
+
+            <div className="control-group">
+              <label className="control-label">Population Density</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Median Household Income</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Competitors per Cell</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Opportunity Score</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+          </div>
+
+          <div className="panel-card">
             <h3 className="panel-title italic">View Settings</h3>
             <div className="toggle-row">
               <span>Dark Mode</span>
@@ -496,7 +529,8 @@ function App() {
 
         </aside>
 
-        <main className="map-area">
+        <main className="map-area" style={{display: activeTab === 'map' ? 'flex' : 'none'}}>
+
           <div id="map-container" ref={mapContainerRef} />
           {loading && (
             <div className="cache-warning loading">

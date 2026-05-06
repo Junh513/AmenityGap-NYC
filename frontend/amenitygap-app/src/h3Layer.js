@@ -20,7 +20,7 @@ const TILESET_MAXZOOM = {
   9: 12,
 };
 
-export function loadAllH3Layers(map, darkMode = true) {
+export function loadAllH3Layers(map, darkMode = true, onCellClick) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
 
@@ -40,10 +40,8 @@ export function loadAllH3Layers(map, darkMode = true) {
       paint: {
         'fill-color': [
           'case',
-          // Greyed out: score set to -999
           ['==', ['coalesce', ['feature-state', 'score'], -998], -999],
           'rgba(80, 80, 80, 0.4)',
-          // Has valid score: color by opportunity
           ['!=', ['coalesce', ['feature-state', 'score'], -998], -998],
           [
             'interpolate',
@@ -61,19 +59,18 @@ export function loadAllH3Layers(map, darkMode = true) {
             75, '#1a9850',
             100, '#006837',
           ],
-          // No score yet: amenity count fallback
           [
             'step',
             ['coalesce', ['feature-state', 'count'], 0],
             'rgba(0,0,0,0)',
-            1, '#e6d280',
-            5, '#d4b44a',
-            10, '#c49620',
-            20, '#d4820a',
-            35, '#fd8d3c',
-            50, '#fc4e2a',
-            70, '#e31a1c',
-            90, '#800026',
+            1, '#fff8f0',
+            5, '#fcd9b0',
+            10, '#f4a460',
+            20, '#d4742a',
+            35, '#a84a10',
+            50, '#7a2e08',
+            70, '#4a1200',
+            90, '#2a0800',
           ],
         ],
         'fill-opacity': 0.45,
@@ -108,19 +105,34 @@ export function loadAllH3Layers(map, darkMode = true) {
         : 'Amenities';
 
       const pop = f.state?.population;
-      const popText = pop != null ? `<br/><b>Population:</b> ${Math.round(pop).toLocaleString()}` : '';
-
       const score = f.state?.score;
-      let scoreText = '';
-      if (score === -999) {
-        scoreText = '<br/><b>Opportunity:</b> <i>Excluded</i>';
-      } else if (score != null) {
-        scoreText = `<br/><b>Opportunity Score:</b> ${score}`;
-      }
 
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`${scoreText}<br/><b>H3:</b> ${f.properties.h3}<br/><b>Borough:</b> ${f.properties.borough || 'Unknown'}<br/><b>Land:</b> ${Math.round((f.properties.land_fraction || 0) * 100)}%<br/><b>${amenityLabel}:</b> ${count}${popText}`)
+        .setHTML(`
+          <h3 style="text-align:center; margin-bottom:8px; font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.4); padding-bottom:6px;">Neighborhood Info</h3>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>H3 Cell:</b> <span>${f.properties.h3}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Borough:</b> <span>${f.properties.borough || 'Unknown'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Land:</b> <span>${Math.round((f.properties.land_fraction || 0) * 100)}%</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Amenity Type:</b> <span>${amenityLabel}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b># of Amenity:</b> <span>${count}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Population:</b> <span>${pop != null ? Math.round(pop).toLocaleString() : '—'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <b>Opportunity Score:</b> <span>${score === -999 ? '<i>Excluded</i>' : (score != null ? score : '—')}</span>
+          </div>
+        `)
         .addTo(map);
     });
   }
@@ -214,3 +226,4 @@ export function setH3Opacity(map, opacity) {
     if (map.getLayer(`h3-fill-${res}`)) map.setPaintProperty(`h3-fill-${res}`, 'fill-opacity', opacity);
   }
 }
+
