@@ -36,6 +36,8 @@ function App() {
   const mapContainerRef = useRef(null)
   const weightsBtnRef = useRef(null)
   const boroughBtnRef = useRef(null)
+  const demandSpillBtnRef = useRef(null)
+  const supplySpillBtnRef = useRef(null)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
@@ -59,8 +61,12 @@ function App() {
   const [minLandFraction, setMinLandFraction] = useState(0.25)
   const [minPopulation, setMinPopulation] = useState(500)
   const [daytimeWeight, setDaytimeWeight] = useState(0.5)
+  const [demandSpillover, setDemandSpillover] = useState({ ring1: 0.5, ring2: 0.2 })
+  const [supplySpillover, setSupplySpillover] = useState({ ring1: 0.5, ring2: 0.2 })
   const [weightsPopupPos, setWeightsPopupPos] = useState(null)
   const [boroughPopupPos, setBoroughPopupPos] = useState(null)
+  const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
+  const [supplySpillPopupPos, setSupplySpillPopupPos] = useState(null)
   const [cellMetadata, setCellMetadata] = useState(null)
 
   const toggleFlyout = (btnRef, currentPos, setPos, closeOthers = []) => {
@@ -356,11 +362,13 @@ function App() {
         cellMetadata,
         jobsData: jobsCache[resolution] || [],
         daytimeWeight,
+        demandSpillover,
+        supplySpillover,
       }
     )
 
     applyOpportunityScores(mapRef.current, scores, resolution)
-  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight])
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight, demandSpillover, supplySpillover])
 
 
 
@@ -422,7 +430,7 @@ function App() {
               <button
                 ref={weightsBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos])}
+                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
               >⚙</button>
             </div>
 
@@ -432,7 +440,27 @@ function App() {
               <button
                 ref={boroughBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos])}
+                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Demand Spillover */}
+            <div className="score-row">
+              <span className="score-label">Demand Spillover</span>
+              <button
+                ref={demandSpillBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Supply Spillover */}
+            <div className="score-row">
+              <span className="score-label">Supply Spillover</span>
+              <button
+                ref={supplySpillBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos])}
               >⚙</button>
             </div>
 
@@ -647,6 +675,76 @@ function App() {
               </div>
             ))}
             <button className="reset-btn" onClick={() => setBoroughMultipliers(DEFAULT_BOROUGH_MULTIPLIERS)}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Demand Spillover Popup */}
+      {demandSpillPopupPos && (
+        <div className="popup-flyout" style={{ top: demandSpillPopupPos.top, left: demandSpillPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Demand Spillover</h3>
+              <button className="popup-close" onClick={() => setDemandSpillPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">How much population/workers from neighbor cells count toward this cell's demand</p>
+            {['ring1', 'ring2'].map((ring) => (
+              <div className="popup-slider-group" key={ring}>
+                <label className="popup-label">{ring === 'ring1' ? 'Ring 1 (adjacent)' : 'Ring 2 (next out)'}</label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="0" max="1" step="0.05"
+                    value={demandSpillover[ring]}
+                    onChange={(e) => setDemandSpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="0" max="1" step="0.05"
+                    value={demandSpillover[ring]}
+                    onChange={(e) => setDemandSpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setDemandSpillover({ ring1: 0.5, ring2: 0.2 })}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Supply Spillover Popup */}
+      {supplySpillPopupPos && (
+        <div className="popup-flyout" style={{ top: supplySpillPopupPos.top, left: supplySpillPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Supply Spillover</h3>
+              <button className="popup-close" onClick={() => setSupplySpillPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">How much amenities in neighbor cells count toward this cell's supply</p>
+            {['ring1', 'ring2'].map((ring) => (
+              <div className="popup-slider-group" key={ring}>
+                <label className="popup-label">{ring === 'ring1' ? 'Ring 1 (adjacent)' : 'Ring 2 (next out)'}</label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="0" max="1" step="0.05"
+                    value={supplySpillover[ring]}
+                    onChange={(e) => setSupplySpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="0" max="1" step="0.05"
+                    value={supplySpillover[ring]}
+                    onChange={(e) => setSupplySpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setSupplySpillover({ ring1: 0.5, ring2: 0.2 })}>
               Reset Defaults
             </button>
           </div>

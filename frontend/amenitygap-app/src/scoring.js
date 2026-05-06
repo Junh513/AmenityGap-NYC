@@ -1,3 +1,5 @@
+import { gridDisk } from 'h3-js'
+
 export function calculateOpportunityScores(amenities, populationData, amenityType, resolution, config) {
   if (!amenities || !populationData) return {}
 
@@ -9,6 +11,8 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
     cellMetadata,
     jobsData = [],
     daytimeWeight = 0,
+    demandSpillover = { ring1: 0.5, ring2: 0.2 },
+    supplySpillover = { ring1: 0.5, ring2: 0.2 },
   } = config
   const h3Key = `h3_res${resolution}`
 
@@ -28,6 +32,12 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
     jobsLookup[h3_index] = jobs
   }
 
+  const blendedPop = (cell) => {
+    const residents = popLookup[cell] || 0
+    const workers = jobsLookup[cell] || 0
+    return (1 - daytimeWeight) * residents + daytimeWeight * workers
+  }
+
   const scores = {}
   const idealRatio = amenityWeights[amenityType] || 2000
 
@@ -39,21 +49,41 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
       continue
     }
 
-    const residents = popLookup[cellId] || 0
-    const workers = jobsLookup[cellId] || 0
-    const blended = (1 - daytimeWeight) * residents + daytimeWeight * workers
+    const disk2 = gridDisk(cellId, 2)
+    const disk1Set = new Set(gridDisk(cellId, 1))
+    let ring1Demand = 0, ring2Demand = 0
+    let ring1Supply = 0, ring2Supply = 0
+    for (const n of disk2) {
+      if (n === cellId) continue
+      const isRing1 = disk1Set.has(n)
+      const d = blendedPop(n)
+      const s = counts[n] || 0
+      if (isRing1) { ring1Demand += d; ring1Supply += s }
+      else { ring2Demand += d; ring2Supply += s }
+    }
 
-    if (blended < minPopulation) {
+    const ownDemand = blendedPop(cellId)
+    const effectiveDemand =
+      ownDemand +
+      demandSpillover.ring1 * ring1Demand +
+      demandSpillover.ring2 * ring2Demand
+
+    if (effectiveDemand < minPopulation) {
       scores[cellId] = null
       continue
     }
 
     const multiplier = boroughMultipliers[meta.borough] || 1.0
-    const effectivePop = blended * multiplier
+    const effectivePop = effectiveDemand * multiplier
 
-    const cellCount = counts[cellId] || 0
+    const ownSupply = counts[cellId] || 0
+    const effectiveSupply =
+      ownSupply +
+      supplySpillover.ring1 * ring1Supply +
+      supplySpillover.ring2 * ring2Supply
+
     const expectedNeed = effectivePop / idealRatio
-    const gap = expectedNeed - cellCount
+    const gap = expectedNeed - effectiveSupply
     const score = Math.max(-100, Math.min(100, Math.round((gap / Math.max(expectedNeed, 0.01)) * 100)))
 
     scores[cellId] = score
