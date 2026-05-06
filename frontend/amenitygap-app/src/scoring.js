@@ -1,7 +1,15 @@
 export function calculateOpportunityScores(amenities, populationData, amenityType, resolution, config) {
   if (!amenities || !populationData) return {}
-  
-  const { amenityWeights, boroughMultipliers, minLandFraction, minPopulation, cellMetadata } = config
+
+  const {
+    amenityWeights,
+    boroughMultipliers,
+    minLandFraction,
+    minPopulation,
+    cellMetadata,
+    jobsData = [],
+    daytimeWeight = 0,
+  } = config
   const h3Key = `h3_res${resolution}`
 
   const counts = {}
@@ -15,26 +23,33 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
     popLookup[h3_index] = population
   }
 
+  const jobsLookup = {}
+  for (const { h3_index, jobs } of jobsData) {
+    jobsLookup[h3_index] = jobs
+  }
+
   const scores = {}
   const idealRatio = amenityWeights[amenityType] || 2000
 
   for (const [cellId, meta] of Object.entries(cellMetadata)) {
     if (Number(meta.resolution) !== resolution) continue
 
-    // Cells that don't meet criteria = null (greyed out)
     if (meta.land_fraction < minLandFraction) {
       scores[cellId] = null
       continue
     }
 
-    const pop = popLookup[cellId] || 0
-    if (pop < minPopulation) {
+    const residents = popLookup[cellId] || 0
+    const workers = jobsLookup[cellId] || 0
+    const blended = (1 - daytimeWeight) * residents + daytimeWeight * workers
+
+    if (blended < minPopulation) {
       scores[cellId] = null
       continue
     }
 
     const multiplier = boroughMultipliers[meta.borough] || 1.0
-    const effectivePop = pop * multiplier
+    const effectivePop = blended * multiplier
 
     const cellCount = counts[cellId] || 0
     const expectedNeed = effectivePop / idealRatio

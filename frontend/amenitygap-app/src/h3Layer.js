@@ -105,6 +105,7 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
         : 'Amenities';
 
       const pop = f.state?.population;
+      const jobs = f.state?.jobs;
       const score = f.state?.score;
 
       new mapboxgl.Popup()
@@ -121,10 +122,10 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
             <b>Land:</b> <span>${Math.round((f.properties.land_fraction || 0) * 100)}%</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b>Amenity Type:</b> <span>${amenityLabel}</span>
+            <b># of ${amenityLabel}:</b> <span>${count}</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b># of Amenity:</b> <span>${count}</span>
+            <b>Workers:</b> <span>${jobs != null ? Math.round(jobs).toLocaleString() : '—'}</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
             <b>Population:</b> <span>${pop != null ? Math.round(pop).toLocaleString() : '—'}</span>
@@ -209,6 +210,17 @@ export function applyPopulationData(map, popRows, resolution) {
     map.setFeatureState(
       { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: h3_index },
       { population }
+    );
+  }
+}
+
+export function applyJobsData(map, jobRows, resolution) {
+  const sourceId = `h3-hexes-${resolution}`;
+  if (!map.getSource(sourceId)) return;
+  for (const { h3_index, jobs } of jobRows) {
+    map.setFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: h3_index },
+      { jobs }
     );
   }
 }

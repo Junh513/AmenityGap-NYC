@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyOpportunityScores } from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyJobsData, applyOpportunityScores } from './h3Layer'
 import { calculateOpportunityScores } from './scoring'
 import './App.css'
 
@@ -24,11 +24,11 @@ const DEFAULT_WEIGHTS = {
 }
 
 const DEFAULT_BOROUGH_MULTIPLIERS = {
-  Manhattan: 2.5,
+  Manhattan: 1.0,
   Brooklyn: 1.0,
   Queens: 1.0,
   Bronx: 1.0,
-  'Staten Island': 0.8,
+  'Staten Island': 1.0,
 }
 
 function App() {
@@ -47,6 +47,7 @@ function App() {
   const [amenityTypes, setAmenityTypes] = useState([])
   const [amenityCache, setAmenityCache] = useState({})
   const [popCache, setPopCache] = useState({})
+  const [jobsCache, setJobsCache] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
@@ -57,6 +58,7 @@ function App() {
   const [boroughMultipliers, setBoroughMultipliers] = useState(DEFAULT_BOROUGH_MULTIPLIERS)
   const [minLandFraction, setMinLandFraction] = useState(0.25)
   const [minPopulation, setMinPopulation] = useState(500)
+  const [daytimeWeight, setDaytimeWeight] = useState(0.5)
   const [weightsPopupPos, setWeightsPopupPos] = useState(null)
   const [boroughPopupPos, setBoroughPopupPos] = useState(null)
   const [cellMetadata, setCellMetadata] = useState(null)
@@ -261,6 +263,29 @@ function App() {
         if (data) popData[res] = data
       }
 
+      const jobsData = {}
+      const jobsResults = await Promise.all(
+        [7, 8, 9].map(async (res) => {
+          try {
+            const r = await fetch(`http://localhost:3001/api/jobs?res=${res}`)
+            if (!r.ok) throw new Error('Backend error')
+            return { res, data: await r.json() }
+          } catch {
+            try {
+              const fb = await fetch(`/cache/jobs-res${res}.json`)
+              return { res, data: await fb.json() }
+            } catch {
+              console.error(`No jobs data for res ${res}`)
+              return { res, data: null }
+            }
+          }
+        })
+      )
+
+      for (const { res, data } of jobsResults) {
+        if (data) jobsData[res] = data
+      }
+
       // Load cell metadata
       try {
         const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
@@ -278,6 +303,7 @@ function App() {
       }
 
       setPopCache(popData)
+      setJobsCache(jobsData)
       setLoading(false)
     }
 
@@ -295,7 +321,8 @@ function App() {
     if (!layersReady) return
     fetchAndApply(selectedAmenity)
     if (popCache[resolution]) applyPopulationData(mapRef.current, popCache[resolution], resolution)
-  }, [selectedAmenity, layersReady, amenityCache, resolution, popCache])
+    if (jobsCache[resolution]) applyJobsData(mapRef.current, jobsCache[resolution], resolution)
+  }, [selectedAmenity, layersReady, amenityCache, resolution, popCache, jobsCache])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady) return
@@ -327,11 +354,13 @@ function App() {
         minLandFraction,
         minPopulation,
         cellMetadata,
+        jobsData: jobsCache[resolution] || [],
+        daytimeWeight,
       }
     )
 
     applyOpportunityScores(mapRef.current, scores, resolution)
-  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation])
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight])
 
 
 
@@ -442,6 +471,41 @@ function App() {
                 onChange={(e) => setMinPopulation(Number(e.target.value))}
               />
             </div>
+
+            {/* Daytime Weight */}
+            <div className="control-group">
+              <label className="control-label">
+                Daytime Weight: {Math.round(daytimeWeight * 100)}%
+              </label>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={Math.round(daytimeWeight * 100)}
+                onChange={(e) => setDaytimeWeight(Number(e.target.value) / 100)}
+              />
+              <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+            </div>
+          </div>
+
+          <div className="panel-card">
+            <h3 className="panel-title italic">Data Filters</h3>
+
+            <div className="control-group">
+              <label className="control-label">Population Density</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Competitors per Cell</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Opportunity Score</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
           </div>
 
           <div className="panel-card">
@@ -479,34 +543,6 @@ function App() {
             <button className="reset-btn" onClick={handleResetView}>
               Reset View
             </button>
-          </div>
-
-          <div className="panel-card">
-            <h3 className="panel-title italic">Data Filters</h3>
-
-            <div className="control-group">
-              <label className="control-label">Population Density</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Median Household Income</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Competitors per Cell</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Opportunity Score</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
           </div>
 
           <div className="panel-card">
