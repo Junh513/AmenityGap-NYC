@@ -2,7 +2,6 @@ import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyJobsData, applyOpportunityScores } from './h3Layer'
-import { calculateOpportunityScores } from './scoring'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
@@ -346,30 +345,40 @@ function App() {
   }, [activeTab])
 
   useEffect(() => {
-    if (!mapRef.current || !layersReady || !selectedAmenity || !cellMetadata) return
-    if (!amenityCache[selectedAmenity] || !popCache[resolution]) return
+    if (!mapRef.current || !layersReady || !selectedAmenity) return
 
-    const scores = calculateOpportunityScores(
-      amenityCache[selectedAmenity],
-      popCache[resolution],
-      selectedAmenity,
-      resolution,
-      {
-        amenityWeights,
-        boroughMultipliers,
-        minLandFraction,
-        minPopulation,
-        cellMetadata,
-        jobsData: jobsCache[resolution] || [],
-        daytimeWeight,
-        demandSpillover,
-        supplySpillover,
+    const controller = new AbortController()
+
+    const fetchScores = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/opportunity-scores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            amenity_type: selectedAmenity,
+            resolution,
+            amenity_weights: amenityWeights,
+            borough_multipliers: boroughMultipliers,
+            min_land_fraction: minLandFraction,
+            min_population: minPopulation,
+            daytime_weight: daytimeWeight,
+            demand_spillover: demandSpillover,
+            supply_spillover: supplySpillover,
+          }),
+        })
+
+        if (!res.ok) throw new Error(`Score fetch failed: ${res.status}`)
+        const { scores } = await res.json()
+        applyOpportunityScores(mapRef.current, scores, resolution)
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error('Opportunity score error:', err)
       }
-    )
+    }
 
-    applyOpportunityScores(mapRef.current, scores, resolution)
-  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight, demandSpillover, supplySpillover])
-
+    fetchScores()
+    return () => controller.abort()
+  }, [selectedAmenity, resolution, layersReady, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight, demandSpillover, supplySpillover])
 
 
   return (
