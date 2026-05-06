@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData } from './h3Layer'
+import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyJobsData, applyOpportunityScores } from './h3Layer'
+import { calculateOpportunityScores } from './scoring'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
@@ -14,9 +15,29 @@ const MAP_STYLES = {
   transit: 'mapbox://styles/mapbox/standard',
 }
 
+const DEFAULT_WEIGHTS = {
+  laundry: 2000,
+  deli: 1500,
+  pharmacy: 3000,
+  barber: 2500,
+  gas_station: 5000,
+}
+
+const DEFAULT_BOROUGH_MULTIPLIERS = {
+  Manhattan: 1.0,
+  Brooklyn: 1.0,
+  Queens: 1.0,
+  Bronx: 1.0,
+  'Staten Island': 1.0,
+}
+
 function App() {
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
+  const weightsBtnRef = useRef(null)
+  const boroughBtnRef = useRef(null)
+  const demandSpillBtnRef = useRef(null)
+  const supplySpillBtnRef = useRef(null)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
@@ -27,12 +48,37 @@ function App() {
   const [selectedAmenity, setSelectedAmenity] = useState('')
   const [amenityTypes, setAmenityTypes] = useState([])
   const [amenityCache, setAmenityCache] = useState({})
+  const [popCache, setPopCache] = useState({})
+  const [jobsCache, setJobsCache] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(true)
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const [amenityWeights, setAmenityWeights] = useState(DEFAULT_WEIGHTS)
+  const [boroughMultipliers, setBoroughMultipliers] = useState(DEFAULT_BOROUGH_MULTIPLIERS)
+  const [minLandFraction, setMinLandFraction] = useState(0.25)
+  const [minPopulation, setMinPopulation] = useState(500)
+  const [daytimeWeight, setDaytimeWeight] = useState(0.5)
+  const [demandSpillover, setDemandSpillover] = useState({ ring1: 0.5, ring2: 0.2 })
+  const [supplySpillover, setSupplySpillover] = useState({ ring1: 0.5, ring2: 0.2 })
+  const [weightsPopupPos, setWeightsPopupPos] = useState(null)
+  const [boroughPopupPos, setBoroughPopupPos] = useState(null)
+  const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
+  const [supplySpillPopupPos, setSupplySpillPopupPos] = useState(null)
+  const [cellMetadata, setCellMetadata] = useState(null)
+
+  const toggleFlyout = (btnRef, currentPos, setPos, closeOthers = []) => {
+    if (currentPos) {
+      setPos(null)
+      return
+    }
+    closeOthers.forEach(close => close(null))
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setPos({ top: rect.top, left: rect.right + 8 })
+  }
 
   const handleResetView = () => {
     if (!mapRef.current) return
@@ -45,13 +91,11 @@ function App() {
     const amenities = amenityCache[type]
     if (!amenities) return
 
-    console.log(`${type} fetched: ${amenities.length}`)
     applyAmenityData(mapRef.current, amenities, type)
 
-    // This will remove markers from other amenities when the selection is switched
     if (mapRef.current.getLayer('amenity-points')) mapRef.current.removeLayer('amenity-points')
     if (mapRef.current.getSource('amenity-markers')) mapRef.current.removeSource('amenity-markers')
-  
+
     const geojson = {
       type: 'FeatureCollection',
       features: amenities
@@ -62,12 +106,12 @@ function App() {
           properties: { name: p.name || type }
         }))
     }
-  
+
     mapRef.current.addSource('amenity-markers', {
       type: 'geojson',
       data: geojson
     })
-  
+
     mapRef.current.addLayer({
       id: 'amenity-points',
       type: 'circle',
@@ -128,7 +172,6 @@ function App() {
       loadAllH3Layers(mapRef.current, true)
       setLayersReady(true)
 
-      // Register amenity point listeners once
       mapRef.current.on('click', 'amenity-points', (e) => {
         e.originalEvent.stopPropagation()
         const f = e.features[0]
@@ -142,7 +185,7 @@ function App() {
       mapRef.current.on('mouseleave', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = ''))
     })
 
-    const fetchAmenityTypes = async () => {
+    const fetchAmenityPop = async () => {
       setLoading(true)
       let types = []
       let fromCache = false
@@ -164,7 +207,6 @@ function App() {
         }
       }
 
-      // Preload all amenity data
       const cache = {}
       const results = await Promise.all(
         types.map(async (type) => {
@@ -191,12 +233,87 @@ function App() {
           fromCache = true
         }
       }
+
       setAmenityCache(cache)
       setUsingCache(fromCache)
-      setLoading(false)    
+
+      // Initialize weights for any new amenity types
+      setAmenityWeights(prev => {
+        const updated = { ...prev }
+        for (const type of types) {
+          if (!(type in updated)) updated[type] = 2000
+        }
+        return updated
+      })
+
+      const popData = {}
+      const popResults = await Promise.all(
+        [7, 8, 9].map(async (res) => {
+          try {
+            const r = await fetch(`http://localhost:3001/api/population?res=${res}`)
+            if (!r.ok) throw new Error('Backend error')
+            return { res, data: await r.json() }
+          } catch {
+            try {
+              const fb = await fetch(`/cache/population-res${res}.json`)
+              return { res, data: await fb.json() }
+            } catch {
+              console.error(`No population data for res ${res}`)
+              return { res, data: null }
+            }
+          }
+        })
+      )
+
+      for (const { res, data } of popResults) {
+        if (data) popData[res] = data
       }
 
-    fetchAmenityTypes()
+      const jobsData = {}
+      const jobsResults = await Promise.all(
+        [7, 8, 9].map(async (res) => {
+          try {
+            const r = await fetch(`http://localhost:3001/api/jobs?res=${res}`)
+            if (!r.ok) throw new Error('Backend error')
+            return { res, data: await r.json() }
+          } catch {
+            try {
+              const fb = await fetch(`/cache/jobs-res${res}.json`)
+              return { res, data: await fb.json() }
+            } catch {
+              console.error(`No jobs data for res ${res}`)
+              return { res, data: null }
+            }
+          }
+        })
+      )
+
+      for (const { res, data } of jobsResults) {
+        if (data) jobsData[res] = data
+      }
+
+      // Load cell metadata
+      try {
+        const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
+        if (!metaRes.ok) throw new Error('Backend error')
+        const metaData = await metaRes.json()
+        setCellMetadata(metaData)
+      } catch (err) {
+        console.error('Metadata fetch error:', err)
+        try {
+          const fb = await fetch('/cache/cell-metadata.json')
+          setCellMetadata(await fb.json())
+        } catch {
+          console.error('No cell metadata available')
+        }
+      }
+
+      setPopCache(popData)
+      setJobsCache(jobsData)
+      setLoading(false)
+    }
+
+    fetchAmenityPop()
 
     return () => {
       if (mapRef.current) {
@@ -209,7 +326,9 @@ function App() {
   useEffect(() => {
     if (!layersReady) return
     fetchAndApply(selectedAmenity)
-  }, [selectedAmenity, layersReady, amenityCache])
+    if (popCache[resolution]) applyPopulationData(mapRef.current, popCache[resolution], resolution)
+    if (jobsCache[resolution]) applyJobsData(mapRef.current, jobsCache[resolution], resolution)
+  }, [selectedAmenity, layersReady, amenityCache, resolution, popCache, jobsCache])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady) return
@@ -220,6 +339,38 @@ function App() {
     if (!mapRef.current || !layersReady) return
     setH3Opacity(mapRef.current, opacity)
   }, [opacity, layersReady])
+
+  useEffect(() => {
+    if (activeTab !== 'map' || !mapRef.current) return
+    requestAnimationFrame(() => mapRef.current?.resize())
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!mapRef.current || !layersReady || !selectedAmenity || !cellMetadata) return
+    if (!amenityCache[selectedAmenity] || !popCache[resolution]) return
+
+    const scores = calculateOpportunityScores(
+      amenityCache[selectedAmenity],
+      popCache[resolution],
+      selectedAmenity,
+      resolution,
+      {
+        amenityWeights,
+        boroughMultipliers,
+        minLandFraction,
+        minPopulation,
+        cellMetadata,
+        jobsData: jobsCache[resolution] || [],
+        daytimeWeight,
+        demandSpillover,
+        supplySpillover,
+      }
+    )
+
+    applyOpportunityScores(mapRef.current, scores, resolution)
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight, demandSpillover, supplySpillover])
+
+
 
   return (
     <div className="app-shell">
@@ -269,6 +420,122 @@ function App() {
             </div>
           </div>
 
+          {/* Opportunity Score Panel */}
+          <div className="panel-card">
+            <h3 className="panel-title italic">Opportunity Score</h3>
+
+            {/* Amenity Weights */}
+            <div className="score-row">
+              <span className="score-label">Amenity Weights</span>
+              <button
+                ref={weightsBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Borough Multipliers */}
+            <div className="score-row">
+              <span className="score-label">Borough Multipliers</span>
+              <button
+                ref={boroughBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Demand Spillover */}
+            <div className="score-row">
+              <span className="score-label">Demand Spillover</span>
+              <button
+                ref={demandSpillBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Supply Spillover */}
+            <div className="score-row">
+              <span className="score-label">Supply Spillover</span>
+              <button
+                ref={supplySpillBtnRef}
+                className="score-btn"
+                onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos])}
+              >⚙</button>
+            </div>
+
+            {/* Min Land Fraction */}
+            <div className="control-group">
+              <label className="control-label">
+                Min Land: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="100" step="1"
+                  value={Math.round(minLandFraction * 100)}
+                  onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
+                />%
+              </label>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={Math.round(minLandFraction * 100)}
+                onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
+              />
+            </div>
+
+            {/* Min Population */}
+            <div className="control-group">
+              <label className="control-label">
+                Min Population: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="50000" step="100"
+                  value={minPopulation}
+                  onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
+                />
+              </label>
+              <input
+                type="range" min="0" max="10000" step="100"
+                value={minPopulation}
+                onChange={(e) => setMinPopulation(Number(e.target.value))}
+              />
+            </div>
+
+            {/* Daytime Weight */}
+            <div className="control-group">
+              <label className="control-label">
+                Daytime Weight: {Math.round(daytimeWeight * 100)}%
+              </label>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={Math.round(daytimeWeight * 100)}
+                onChange={(e) => setDaytimeWeight(Number(e.target.value) / 100)}
+              />
+              <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+            </div>
+          </div>
+
+          <div className="panel-card">
+            <h3 className="panel-title italic">Data Filters</h3>
+
+            <div className="control-group">
+              <label className="control-label">Population Density</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Competitors per Cell</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">Opportunity Score</label>
+              <input type="range" min="0" max="100" step="1" disabled />
+              <span className="filter-coming-soon">Coming soon</span>
+            </div>
+          </div>
+
           <div className="panel-card">
             <h3 className="panel-title italic">Map Controls</h3>
 
@@ -307,34 +574,6 @@ function App() {
           </div>
 
           <div className="panel-card">
-            <h3 className="panel-title italic">Data Filters</h3>
-
-            <div className="control-group">
-              <label className="control-label">Population Density</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Median Household Income</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Competitors per Cell</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Opportunity Score</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-          </div>
-
-          <div className="panel-card">
             <h3 className="panel-title italic">View Settings</h3>
             <div className="toggle-row">
               <span>Dark Mode</span>
@@ -369,6 +608,148 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Amenity Weights Popup */}
+      {weightsPopupPos && (
+        <div className="popup-flyout" style={{ top: weightsPopupPos.top, left: weightsPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Amenity Weights</h3>
+              <button className="popup-close" onClick={() => setWeightsPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">People per 1 amenity (ideal ratio)</p>
+            {Object.entries(amenityWeights).map(([type, value]) => (
+              <div className="popup-slider-group" key={type}>
+                <label className="popup-label">
+                  {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                </label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="500" max="10000" step="100"
+                    value={value}
+                    onChange={(e) => setAmenityWeights(prev => ({ ...prev, [type]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="100" max="50000" step="100"
+                    value={value}
+                    onChange={(e) => setAmenityWeights(prev => ({ ...prev, [type]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setAmenityWeights(DEFAULT_WEIGHTS)}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Borough Multipliers Popup */}
+      {boroughPopupPos && (
+        <div className="popup-flyout" style={{ top: boroughPopupPos.top, left: boroughPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Borough Multipliers</h3>
+              <button className="popup-close" onClick={() => setBoroughPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">Population demand multiplier per borough</p>
+            {Object.entries(boroughMultipliers).map(([borough, value]) => (
+              <div className="popup-slider-group" key={borough}>
+                <label className="popup-label">{borough}</label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="0.1" max="5.0" step="0.1"
+                    value={value}
+                    onChange={(e) => setBoroughMultipliers(prev => ({ ...prev, [borough]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="0.1" max="10" step="0.1"
+                    value={value}
+                    onChange={(e) => setBoroughMultipliers(prev => ({ ...prev, [borough]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setBoroughMultipliers(DEFAULT_BOROUGH_MULTIPLIERS)}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Demand Spillover Popup */}
+      {demandSpillPopupPos && (
+        <div className="popup-flyout" style={{ top: demandSpillPopupPos.top, left: demandSpillPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Demand Spillover</h3>
+              <button className="popup-close" onClick={() => setDemandSpillPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">How much population/workers from neighbor cells count toward this cell's demand</p>
+            {['ring1', 'ring2'].map((ring) => (
+              <div className="popup-slider-group" key={ring}>
+                <label className="popup-label">{ring === 'ring1' ? 'Ring 1 (adjacent)' : 'Ring 2 (next out)'}</label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="0" max="1" step="0.05"
+                    value={demandSpillover[ring]}
+                    onChange={(e) => setDemandSpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="0" max="1" step="0.05"
+                    value={demandSpillover[ring]}
+                    onChange={(e) => setDemandSpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setDemandSpillover({ ring1: 0.5, ring2: 0.2 })}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Supply Spillover Popup */}
+      {supplySpillPopupPos && (
+        <div className="popup-flyout" style={{ top: supplySpillPopupPos.top, left: supplySpillPopupPos.left }}>
+          <div className="popup-modal">
+            <div className="popup-header">
+              <h3>Supply Spillover</h3>
+              <button className="popup-close" onClick={() => setSupplySpillPopupPos(null)}>✕</button>
+            </div>
+            <p className="popup-desc">How much amenities in neighbor cells count toward this cell's supply</p>
+            {['ring1', 'ring2'].map((ring) => (
+              <div className="popup-slider-group" key={ring}>
+                <label className="popup-label">{ring === 'ring1' ? 'Ring 1 (adjacent)' : 'Ring 2 (next out)'}</label>
+                <div className="popup-input-row">
+                  <input
+                    type="range" min="0" max="1" step="0.05"
+                    value={supplySpillover[ring]}
+                    onChange={(e) => setSupplySpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    className="popup-number"
+                    min="0" max="1" step="0.05"
+                    value={supplySpillover[ring]}
+                    onChange={(e) => setSupplySpillover(prev => ({ ...prev, [ring]: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <button className="reset-btn" onClick={() => setSupplySpillover({ ring1: 0.5, ring2: 0.2 })}>
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

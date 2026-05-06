@@ -102,4 +102,104 @@ app.get('/api/amenities', async (req, res) => {
   }
 });
 
+app.get('/api/population', async (req, res) => {
+  const resParam = parseInt(req.query.res ?? '8', 10);
+  if (![7, 8, 9].includes(resParam)) {
+    return res.status(400).json({ error: 'res must be 7, 8, or 9' });
+  }
+
+  const table = `h3_population_res${resParam}`;
+  const cacheFile = path.join(CACHE_DIR, `population-res${resParam}.json`);
+  const limit = 1000;
+  let offset = 0;
+  let allData = [];
+
+  try {
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('h3_index,population')
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      if (data.length < limit) break;
+      offset += limit;
+    }
+
+    fs.writeFileSync(cacheFile, JSON.stringify(allData));
+    syncToFrontend(`population-res${resParam}.json`);
+    res.json(allData);
+  } catch (err) {
+    console.error('Supabase fetch failed, trying cache:', err.message);
+    if (fs.existsSync(cacheFile)) {
+      const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+      res.json(cached);
+    } else {
+      res.status(500).json({ error: 'No data available' });
+    }
+  }
+});
+
+app.get('/api/cell-metadata', async (req, res) => {
+  const cacheFile = path.join(CACHE_DIR, 'cell-metadata.json')
+  const frontendFile = path.join(FRONTEND_CACHE_DIR, 'cell-metadata.json')
+
+  // Try backend cache first, then frontend public
+  if (fs.existsSync(cacheFile)) {
+    const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'))
+    syncToFrontend('cell-metadata.json')
+    return res.json(cached)
+  }
+  if (fs.existsSync(frontendFile)) {
+    const cached = JSON.parse(fs.readFileSync(frontendFile, 'utf-8'))
+    return res.json(cached)
+  }
+  res.status(500).json({ error: 'No metadata available' })
+})
+
+
+app.get('/api/jobs', async (req, res) => {
+  const resParam = parseInt(req.query.res ?? '8', 10);
+  if (![7, 8, 9].includes(resParam)) {
+    return res.status(400).json({ error: 'res must be 7, 8, or 9' });
+  }
+
+  const table = `h3_jobs_res${resParam}`;
+  const cacheFile = path.join(CACHE_DIR, `jobs-res${resParam}.json`);
+  const limit = 1000;
+  let offset = 0;
+  let allData = [];
+
+  try {
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('h3_index,jobs')
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      if (data.length < limit) break;
+      offset += limit;
+    }
+
+    fs.writeFileSync(cacheFile, JSON.stringify(allData));
+    syncToFrontend(`jobs-res${resParam}.json`);
+    res.json(allData);
+  } catch (err) {
+    console.error('Supabase fetch failed, trying cache:', err.message);
+    if (fs.existsSync(cacheFile)) {
+      const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+      res.json(cached);
+    } else {
+      res.status(500).json({ error: 'No data available' });
+    }
+  }
+});
+
 app.listen(3001, () => console.log('Backend running on http://localhost:3001'));

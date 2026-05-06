@@ -27,7 +27,7 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
     map.addSource(sourceId, {
       type: 'vector',
       url: `mapbox://${TILESET_IDS[res]}`,
-      promoteId: 'h3',   // Use h3 cell ID as the feature ID for feature-state
+      promoteId: 'h3',
       maxzoom: TILESET_MAXZOOM[res],
     });
 
@@ -39,18 +39,39 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
       layout: { visibility: res === 7 ? 'visible' : 'none' },
       paint: {
         'fill-color': [
-          'step',
-          ['coalesce', ['feature-state', 'count'], 0],
-          'rgba(0,0,0,0)',
-          1, '#fff8f0',
-          5,  '#fcd9b0',
-          10, '#f4a460',
-          20, '#d4742a',
-          35, '#a84a10',
-          50, '#7a2e08',
-          70, '#4a1200',
-          90, '#2a0800',
-          
+          'case',
+          ['==', ['coalesce', ['feature-state', 'score'], -998], -999],
+          'rgba(80, 80, 80, 0.4)',
+          ['!=', ['coalesce', ['feature-state', 'score'], -998], -998],
+          [
+            'interpolate',
+            ['linear'],
+            ['feature-state', 'score'],
+            -100, '#67001f',
+            -75, '#d73027',
+            -50, '#f46d43',
+            -30, '#fdae61',
+            -10, '#fee08b',
+            0, '#ffffbf',
+            10, '#d9ef8b',
+            30, '#91cf60',
+            50, '#66bd63',
+            75, '#1a9850',
+            100, '#006837',
+          ],
+          [
+            'step',
+            ['coalesce', ['feature-state', 'count'], 0],
+            'rgba(0,0,0,0)',
+            1, '#fff8f0',
+            5, '#fcd9b0',
+            10, '#f4a460',
+            20, '#d4742a',
+            35, '#a84a10',
+            50, '#7a2e08',
+            70, '#4a1200',
+            90, '#2a0800',
+          ],
         ],
         'fill-opacity': 0.45,
         'fill-antialias': true,
@@ -64,7 +85,7 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
       'source-layer': SOURCE_LAYER_NAMES[res],
       layout: { visibility: res === 7 ? 'visible' : 'none' },
       paint: {
-        'line-color':darkMode ? '#ffffff' : '#888888',
+        'line-color': darkMode ? '#ffffff' : '#888888',
         'line-width': 0.3,
         'line-opacity': 0.5,
       },
@@ -83,6 +104,10 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
         ? amenityType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
         : 'Amenities';
 
+      const pop = f.state?.population;
+      const jobs = f.state?.jobs;
+      const score = f.state?.score;
+
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
         .setHTML(`
@@ -91,17 +116,22 @@ export function loadAllH3Layers(map, darkMode = true, onCellClick) {
             <b>H3 Cell:</b> <span>${f.properties.h3}</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b>Amenity Type:</b> <span>${amenityLabel}</span>
+            <b>Borough:</b> <span>${f.properties.borough || 'Unknown'}</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b># of Amenity:</b> <span>${count}</span>
+            <b>Land:</b> <span>${Math.round((f.properties.land_fraction || 0) * 100)}%</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b>Population:</b> 
+            <b># of ${amenityLabel}:</b> <span>${count}</span>
           </div>
-
-          <div style="display:flex; flex-direction:column; margin-bottom:4px;">
-            <b>Opportunity Score:</b>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Workers:</b> <span>${jobs != null ? Math.round(jobs).toLocaleString() : '—'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Population:</b> <span>${pop != null ? Math.round(pop).toLocaleString() : '—'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <b>Opportunity Score:</b> <span>${score === -999 ? '<i>Excluded</i>' : (score != null ? score : '—')}</span>
           </div>
         `)
         .addTo(map);
@@ -117,23 +147,81 @@ export function applyAmenityData(map, amenities, amenityType) {
 
     const h3Key = `h3_res${res}`;
 
-    // Count amenities per cell
     const counts = {};
     for (const a of amenities) {
       const cell = a[h3Key];
       if (cell) counts[cell] = (counts[cell] || 0) + 1;
     }
 
-    // Reset all feature states first
-    map.removeFeatureState({ source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[res] });
+    const prevCounted = map._h3Counted?.[res] || new Set();
+    for (const cellId of prevCounted) {
+      map.setFeatureState(
+        { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[res], id: cellId },
+        { count: 0, amenityType: '' }
+      );
+    }
 
-    // Set count on each cell that has amenities
+    const nowCounted = new Set();
     for (const [cellId, count] of Object.entries(counts)) {
       map.setFeatureState(
         { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[res], id: cellId },
         { count, amenityType: amenityType || '' }
       );
+      nowCounted.add(cellId);
     }
+
+    map._h3Counted = map._h3Counted || {};
+    map._h3Counted[res] = nowCounted;
+  }
+}
+
+export function applyOpportunityScores(map, scores, resolution) {
+  const sourceId = `h3-hexes-${resolution}`;
+  if (!map.getSource(sourceId)) return;
+
+  // Clear previous scores
+  const prevScored = map._h3Scored?.[resolution] || new Set();
+  for (const cellId of prevScored) {
+    map.removeFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: cellId },
+      'score'
+    );
+  }
+
+  const nowScored = new Set();
+  for (const [cellId, score] of Object.entries(scores)) {
+    // null = doesn't meet criteria → grey out with -999
+    const val = score === null ? -999 : score;
+    map.setFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: cellId },
+      { score: val }
+    );
+    nowScored.add(cellId);
+  }
+
+  map._h3Scored = map._h3Scored || {};
+  map._h3Scored[resolution] = nowScored;
+}
+
+export function applyPopulationData(map, popRows, resolution) {
+  const sourceId = `h3-hexes-${resolution}`;
+  if (!map.getSource(sourceId)) return;
+  for (const { h3_index, population } of popRows) {
+    map.setFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: h3_index },
+      { population }
+    );
+  }
+}
+
+export function applyJobsData(map, jobRows, resolution) {
+  const sourceId = `h3-hexes-${resolution}`;
+  if (!map.getSource(sourceId)) return;
+  for (const { h3_index, jobs } of jobRows) {
+    map.setFeatureState(
+      { source: sourceId, sourceLayer: SOURCE_LAYER_NAMES[resolution], id: h3_index },
+      { jobs }
+    );
   }
 }
 
