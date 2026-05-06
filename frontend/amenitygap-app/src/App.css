@@ -69,6 +69,26 @@ html, body, #root {
   flex-direction: column;
   gap: 10px;
   flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #7ab8b0 #e8efed;
+}
+
+.sidebar-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-panel::-webkit-scrollbar-track {
+  background: #e8efed;
+  border-radius: 4px;
+}
+
+.sidebar-panel::-webkit-scrollbar-thumb {
+  background: #7ab8b0;
+  border-radius: 4px;
+}
+
+.sidebar-panel::-webkit-scrollbar-thumb:hover {
+  background: #5f9ea0;
 }
 
 .panel-card {
