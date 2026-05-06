@@ -20,7 +20,7 @@ const TILESET_MAXZOOM = {
   9: 12,
 };
 
-export function loadAllH3Layers(map, darkMode = true) {
+export function loadAllH3Layers(map, darkMode = true, onCellClick) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
 
@@ -85,7 +85,25 @@ export function loadAllH3Layers(map, darkMode = true) {
 
       new mapboxgl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<b>H3:</b> ${f.properties.h3}<br/><b>${amenityLabel}:</b> ${count}`)
+        .setHTML(`
+          <h3 style="text-align:center; margin-bottom:8px; font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.4); padding-bottom:6px;">Neighborhood Info</h3>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>H3 Cell:</b> <span>${f.properties.h3}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Amenity Type:</b> <span>${amenityLabel}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b># of Amenity:</b> <span>${count}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b>Population:</b> 
+          </div>
+
+          <div style="display:flex; flex-direction:column; margin-bottom:4px;">
+            <b>Opportunity Score:</b>
+          </div>
+        `)
         .addTo(map);
     });
   }
@@ -132,3 +150,4 @@ export function setH3Opacity(map, opacity) {
     if (map.getLayer(`h3-fill-${res}`)) map.setPaintProperty(`h3-fill-${res}`, 'fill-opacity', opacity);
   }
 }
+
