@@ -197,5 +197,15 @@ To run the population ETL from the root directory: `python ./data_exploration/et
 
 This will populate three Supabase tables: `h3_population_res7`, `h3_population_res8`, and `h3_population_res9`, each mapping `h3_index → population`.
 
+---
+
+To run the daytime population ETL from the root directory: `python ./data_exploration/daytime_etl.py`
+
+This will populate six Supabase tables: `h3_jobs_res7/8/9`, `h3_transit_res7/8/9`.
+
+Jobs tables have h3 cell -> estimated jobs & job density.
+
+Transit tables have h3 cell -> average daily ridership.
+
 
 **Required file:** `./data_exploration/data/2020_Census_Tracts_20260318.geojson` (NYC Open Data tract boundaries)

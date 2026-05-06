@@ -4,6 +4,7 @@
 data_exploration/data/*.html
 backend/cache/
 *.png
+*.xlsx
 
 # Python virtual environment
 .venv/
