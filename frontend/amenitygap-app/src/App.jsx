@@ -4,6 +4,11 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyJobsData, applyOpportunityScores } from './h3Layer'
 import { calculateOpportunityScores } from './scoring'
 import './App.css'
+import LandingPage from './landingPage'
+import AboutPage from './AboutPage'
+import DataPage from './DataPage'
+
+
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
 const INITIAL_ZOOM = 10
@@ -55,6 +60,8 @@ function App() {
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showLanding, setShowLanding] = useState(true)
+
 
   const [amenityWeights, setAmenityWeights] = useState(DEFAULT_WEIGHTS)
   const [boroughMultipliers, setBoroughMultipliers] = useState(DEFAULT_BOROUGH_MULTIPLIERS)
@@ -131,7 +138,7 @@ function App() {
     setLayersReady(false)
     mapRef.current.setStyle(style)
     mapRef.current.once('style.load', () => {
-      loadAllH3Layers(mapRef.current, isDark,)
+      loadAllH3Layers(mapRef.current, isDark)
       setLayersReady(true)
       if (selectedAmenity) fetchAndApply(selectedAmenity)
     })
@@ -156,6 +163,9 @@ function App() {
   }
 
   useEffect(() => {
+    
+    if (showLanding) return
+    
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
     mapRef.current = new mapboxgl.Map({
@@ -321,7 +331,8 @@ function App() {
         mapRef.current = null
       }
     }
-  }, [])
+  }, [showLanding])
+
 
   useEffect(() => {
     if (!layersReady) return
@@ -371,6 +382,11 @@ function App() {
   }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight, demandSpillover, supplySpillover])
 
 
+  if (showLanding) 
+  {
+    return <LandingPage onEnter={() => setShowLanding(false)} />
+  }
+
 
   return (
     <div className="app-shell">
@@ -390,6 +406,17 @@ function App() {
       </header>
 
       <div className="content-area">
+
+
+    {activeTab === 'about' && (
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        <AboutPage onExplore={() => setActiveTab('map')} />
+      </div>
+    )}
+
+    {activeTab === 'data' && <DataPage />}
+
+
         <aside className="sidebar-panel" style={{display: activeTab === 'map' ? 'flex' : 'none'}}>
 
 
@@ -596,6 +623,39 @@ function App() {
         <main className="map-area" style={{display: activeTab === 'map' ? 'flex' : 'none'}}>
 
           <div id="map-container" ref={mapContainerRef} />
+          {selectedAmenity && (
+            <div className="map-legend">
+              <div className="legend-title">Opportunity Score</div>
+              <div className="legend-items">
+                <div className="legend-item">
+                  <div className="legend-swatch" style={{background: '#1a9850'}}></div>
+                  <span>High opportunity</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-swatch" style={{background: '#91cf60'}}></div>
+                  <span>Good opportunity</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-swatch" style={{background: '#fee08b'}}></div>
+                  <span>Moderate</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-swatch" style={{background: '#fc8d59'}}></div>
+                  <span>Low opportunity</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-swatch" style={{background: '#67001f'}}></div>
+                  <span>Saturated</span>
+                </div>
+                <div className="legend-divider"></div>
+                <div className="legend-item">
+                  <div className="legend-swatch" style={{background: '#888'}}></div>
+                  <span>Excluded</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {loading && (
             <div className="cache-warning loading">
               ⏳ Loading amenity data...

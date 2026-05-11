@@ -1,0 +1,273 @@
+/* ─── DATA PAGE SHELL ────────────────────────────────────────────── */
+/* outer wrapper for the whole data page */
+.data-page {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  font-family: 'Times New Roman', Times, serif;
+  background: #f2f5f4;
+  scrollbar-width: thin;
+  scrollbar-color: #7ab8b0 #e8efed;
+}
+
+
+/* ─── HERO SECTION ───────────────────────────────────────────────── */
+/* dark teal hero with a very faint grid overlay on top of the gradient
+   the grid is drawn using two stacked linear-gradients at low opacity
+   background-size sets the grid cell size and the gradient to cover the full section */
+.data-hero {
+  background:
+    linear-gradient(rgba(122,184,176,0.029) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(122,184,176,0.029) 1px, transparent 1px),
+    linear-gradient(160deg, #1a3d38 0%, #2a5a52 35%, #3d7a7c 70%, #4a8f92 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  display: flex;
+  justify-content: center;    /* centers both columns together in the middle of the screen */
+  align-items: center;
+  gap: 60px;
+  position: relative;
+  overflow: hidden;
+  padding: 36px 40px;
+}
+
+
+/* ─── HERO TEXT ──────────────────────────────────────────────────── */
+/* left side of the hero — eyebrow label, title, and description stacked vertically */
+.data-hero-content {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 10px;
+  max-width: 400px;
+}
+
+/* small all-caps label above the title */
+.data-hero-eyebrow {
+  font-family: sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(122, 184, 176, 0.65);
+}
+
+/* white-space: nowrap keeps the title on one line so it doesnt wrap awkwardly */
+.data-hero-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: clamp(1.8rem, 2.8vw, 2.4rem);
+  color: #f0faf8;
+  line-height: 1.1;
+  font-weight: normal;
+  margin: 0;
+  letter-spacing: 2.5px;
+  white-space: nowrap;
+}
+
+.data-hero-desc {
+  font-size: 0.78rem;
+  color: rgba(245, 249, 248, 0.58);
+  line-height: 1.75;
+  max-width: 380px;
+}
+
+
+/* ─── TERMINAL ───────────────────────────────────────────────────── */
+/* right side of the hero — styled to look like a macOS terminal window
+   fixed width so the hero layout stays stable as the typewriter runs */
+.data-terminal {
+  background: rgba(5, 18, 18, 0.85);
+  border: 1px solid rgba(122, 184, 176, 0.2);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-family: monospace;
+  flex-shrink: 0;
+  width: 380px;
+}
+
+/* top bar of the terminal with the three colored dots */
+.data-terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+/* the three macOS-style window control dots */
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.dot.red    { background: #ee352e; opacity: 0.8; }
+.dot.yellow { background: #fccc0a; opacity: 0.8; }
+.dot.green  { background: #6cbe45; opacity: 0.8; }
+
+.data-terminal-title {
+  font-family: sans-serif;
+  font-size: 0.6rem;
+  color: rgba(122, 184, 176, 0.35);
+  letter-spacing: 1px;
+  margin-left: 6px;
+}
+
+/* fixed height so the hero doesnt shift as lines are typed in
+   overflow hidden clips any extra content that goes past the bottom */
+.data-terminal-body {
+  height: 152px;
+  overflow: hidden;
+}
+
+.data-terminal-line {
+  font-size: 0.72rem;
+  line-height: 1.9;
+  min-height: 20px;   /* stops the terminal from collapsing before lines appear */
+}
+
+
+/* ─── TABLE SECTION ──────────────────────────────────────────────── */
+/* light background section below the hero containing the datasets table */
+.data-table-section {
+  padding: 28px 32px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* section heading above the table */
+.data-section-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1rem;
+  color: #1a3d38;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #cdddd8;
+}
+
+
+/* ─── TABLE ──────────────────────────────────────────────────────── */
+/* white card that wraps the table — border-radius clips the rounded corners */
+.data-table-wrap {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+/* dark teal header row */
+.data-table thead tr {
+  background: #1a3d38;
+}
+
+.data-table th {
+  padding: 11px 16px;
+  text-align: left;
+  font-family: sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(245, 249, 248, 0.7);
+  font-weight: bold;
+}
+
+.data-table td {
+  padding: 13px 16px;
+  color: #445566;
+  border-bottom: 1px solid #f0f4f3;
+}
+
+/* removes the border on the last row so it doesnt double up with the card edge */
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* subtle teal tint on hover to show the row is interactive */
+.data-table tbody tr:hover td {
+  background: rgba(95, 158, 160, 0.04);
+}
+
+/* dataset name column is bold and darker to stand out from the other cells */
+.data-td-name {
+  font-weight: bold;
+  color: #1a3d38 !important;
+}
+
+
+/* ─── COVERAGE TAGS ──────────────────────────────────────────────── */
+/* colored pill badges in the coverage column
+   each tag color corresponds to a different data category */
+.data-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-family: sans-serif;
+  font-size: 0.62rem;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
+
+.data-tag--amenities    { background: #e0f0f0; color: #2a6870; }
+.data-tag--demographics { background: #dde8ed; color: #2a4a5c; }
+.data-tag--population   { background: #dde8ed; color: #2a4a5c; }
+.data-tag--spatial      { background: #ddeedd; color: #1a4c2a; }
+.data-tag--workforce    { background: #e0f0f0; color: #2a6870; }
+
+
+/* ─── VIEW DATA LINK ─────────────────────────────────────────────── */
+/* styled as a button but is actually an anchor tag that opens the Supabase table
+   text-decoration none removes the default underline that anchor tags get */
+.data-dl-btn {
+  display: inline-block;
+  padding: 5px 14px;
+  background: white;
+  color: #3d7a7c;
+  border: 1.5px solid #cdddd8;
+  border-radius: 14px;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 0.72rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.data-dl-btn:hover {
+  background: #5f9ea0;
+  border-color: #5f9ea0;
+  color: white;
+}
+
+
+/* ─── DISCLAIMER ─────────────────────────────────────────────────── */
+/* warning card at the bottom with an orange left border to signal caution */
+.data-disclaimer {
+  background: white;
+  border-radius: 8px;
+  padding: 14px 18px;
+  border-left: 3px solid #fdae61;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.data-disclaimer-icon {
+  font-size: 0.9rem;
+  margin-top: 1px;
+  flex-shrink: 0;   /* stops the icon from shrinking if the text is long */
+}
+
+.data-disclaimer p {
+  font-size: 0.74rem;
+  color: #667788;
+  line-height: 1.65;
+}
+
+.data-disclaimer strong {
+  color: #1a3d38;
+}
