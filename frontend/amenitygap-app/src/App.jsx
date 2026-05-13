@@ -76,6 +76,10 @@ function App() {
   const [minPopulation, setMinPopulation] = useState(500)
   const [daytimeWeight, setDaytimeWeight] = useState(0.5)
   const [pendingDaytimeWeight, setPendingDaytimeWeight] = useState(0.5)
+  const [minScoreFilter, setMinScoreFilter] = useState(-100)
+  const [pendingMinScore, setPendingMinScore] = useState(-100)
+  const [minAmenityCount, setMinAmenityCount] = useState(0)
+  const [pendingMinAmenityCount, setPendingMinAmenityCount] = useState(0)
   const [demandSpillover, setDemandSpillover] = useState(SPILLOVER_DEFAULTS_BY_RES[7])
   const [supplySpillover, setSupplySpillover] = useState(SPILLOVER_DEFAULTS_BY_RES[7])
   const [weightsPopupPos, setWeightsPopupPos] = useState(null)
@@ -91,6 +95,8 @@ function App() {
   const dBoroughMultipliers = useDebouncedValue(boroughMultipliers)
   const dDemandSpillover = useDebouncedValue(demandSpillover)
   const dSupplySpillover = useDebouncedValue(supplySpillover)
+  const dMinScoreFilter = useDebouncedValue(minScoreFilter)
+  const dMinAmenityCount = useDebouncedValue(minAmenityCount)
 
   const toggleFlyout = (btnRef, currentPos, setPos, closeOthers = []) => {
     if (currentPos) {
@@ -398,11 +404,17 @@ function App() {
         daytimeWeight: dDaytimeWeight,
         demandSpillover: dDemandSpillover,
         supplySpillover: dSupplySpillover,
+        minAmenityCount: dMinAmenityCount,
       }
     )
 
-    applyOpportunityScores(mapRef.current, scores, resolution)
-  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, dAmenityWeights, dBoroughMultipliers, dMinLand, dMinPop, dDaytimeWeight, dDemandSpillover, dSupplySpillover])
+    const filtered = {}
+    for (const [cellId, score] of Object.entries(scores)) {
+      filtered[cellId] = (score == null || score < dMinScoreFilter) ? null : score
+    }
+
+    applyOpportunityScores(mapRef.current, filtered, resolution)
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, dAmenityWeights, dBoroughMultipliers, dMinLand, dMinPop, dDaytimeWeight, dDemandSpillover, dSupplySpillover, dMinScoreFilter, dMinAmenityCount])
 
 
   if (showLanding) 
@@ -580,21 +592,49 @@ function App() {
             <h3 className="panel-title italic">Data Filters</h3>
 
             <div className="control-group">
-              <label className="control-label">Population Density</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
+              <label className="control-label">
+                Min Amenity Count: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="50" step="1"
+                  value={pendingMinAmenityCount}
+                  onChange={(e) => {
+                    const v = Math.min(50, Math.max(0, Number(e.target.value)))
+                    setPendingMinAmenityCount(v)
+                    setMinAmenityCount(v)
+                  }}
+                />
+              </label>
+              <input
+                type="range" min="0" max="50" step="1"
+                value={pendingMinAmenityCount}
+                onChange={(e) => setPendingMinAmenityCount(Number(e.target.value))}
+                onMouseUp={() => setMinAmenityCount(pendingMinAmenityCount)}
+                onTouchEnd={() => setMinAmenityCount(pendingMinAmenityCount)}
+              />
             </div>
 
             <div className="control-group">
-              <label className="control-label">Competitors per Cell</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Opportunity Score</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
+              <label className="control-label">
+                Min Opportunity Score: <input
+                  type="number"
+                  className="inline-number"
+                  min="-100" max="100" step="1"
+                  value={pendingMinScore}
+                  onChange={(e) => {
+                    const v = Math.min(100, Math.max(-100, Number(e.target.value)))
+                    setPendingMinScore(v)
+                    setMinScoreFilter(v)
+                  }}
+                />
+              </label>
+              <input
+                type="range" min="-100" max="100" step="1"
+                value={pendingMinScore}
+                onChange={(e) => setPendingMinScore(Number(e.target.value))}
+                onMouseUp={() => setMinScoreFilter(pendingMinScore)}
+                onTouchEnd={() => setMinScoreFilter(pendingMinScore)}
+              />
             </div>
           </div>
 
