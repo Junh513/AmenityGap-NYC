@@ -272,6 +272,25 @@ input[type='range'] {
   color: white;
 }
 
+.panel-subsection {
+  margin-top: 14px;
+  padding: 12px;
+  background-color: #dde7e3;
+  border-radius: 8px;
+  border: 1px solid #c8d5d0;
+}
+
+.panel-subtitle {
+  font-size: 0.8rem;
+  font-weight: bold;
+  font-style: italic;
+  color: #1a3d38;
+  text-align: center;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #c8d5d0;
+}
+
 .score-row {
   display: flex;
   justify-content: space-between;

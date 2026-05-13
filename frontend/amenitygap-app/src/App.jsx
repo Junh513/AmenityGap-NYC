@@ -536,65 +536,78 @@ function App() {
               >⚙</button>
             </div>
 
-            {/* Min Land Fraction */}
-            <div className="control-group">
-              <label className="control-label">
-                Min Land: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="100" step="1"
+            <div className="panel-subsection">
+              <div className="panel-subtitle">Demographic Tuning</div>
+
+              <div className="control-group">
+                <label className="control-label">
+                  Min Land: <input
+                    type="number"
+                    className="inline-number"
+                    min="0" max="100" step="1"
+                    value={Math.round(minLandFraction * 100)}
+                    onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
+                  />%
+                </label>
+                <input
+                  type="range" min="0" max="100" step="1"
                   value={Math.round(minLandFraction * 100)}
-                  onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
-                />%
-              </label>
-              <input
-                type="range" min="0" max="100" step="1"
-                value={Math.round(minLandFraction * 100)}
-                onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
-              />
-            </div>
-
-            {/* Min Population */}
-            <div className="control-group">
-              <label className="control-label">
-                Min Population: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="50000" step="100"
-                  value={minPopulation}
-                  onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
+                  onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
                 />
-              </label>
-              <input
-                type="range" min="0" max="10000" step="100"
-                value={minPopulation}
-                onChange={(e) => setMinPopulation(Number(e.target.value))}
-              />
-            </div>
+              </div>
 
-            {/* Daytime Weight */}
-            <div className="control-group">
-              <label className="control-label">
-                Daytime Weight: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="100" step="1"
+              <div className="control-group">
+                <label className="control-label">
+                  Min Population: <input
+                    type="number"
+                    className="inline-number"
+                    min="0" max="50000" step="100"
+                    value={minPopulation}
+                    onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
+                  />
+                </label>
+                <input
+                  type="range" min="0" max="10000" step="100"
+                  value={minPopulation}
+                  onChange={(e) => setMinPopulation(Number(e.target.value))}
+                />
+              </div>
+
+              <div className="control-group">
+                <label className="control-label">
+                  Daytime Weight: <input
+                    type="number"
+                    className="inline-number"
+                    min="0" max="100" step="1"
+                    value={Math.round(pendingDaytimeWeight * 100)}
+                    onChange={(e) => {
+                      const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
+                      setPendingDaytimeWeight(v)
+                      setDaytimeWeight(v)
+                    }}
+                  />%
+                </label>
+                <input
+                  type="range" min="0" max="100" step="1"
                   value={Math.round(pendingDaytimeWeight * 100)}
-                  onChange={(e) => {
-                    const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
-                    setPendingDaytimeWeight(v)
-                    setDaytimeWeight(v)
-                  }}
-                />%
-              </label>
-              <input
-                type="range" min="0" max="100" step="1"
-                value={Math.round(pendingDaytimeWeight * 100)}
-                onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
-                onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
-                onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
-              />
-              <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+                  onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
+                  onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
+                  onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
+                />
+                <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+              </div>
+
+              <button
+                className="reset-btn"
+                onClick={() => {
+                  setMinLandFraction(0.25)
+                  setMinPopulation(500)
+                  setDaytimeWeight(0.5)
+                  setPendingDaytimeWeight(0.5)
+                }}
+              >
+                Reset Defaults
+              </button>
             </div>
           </div>
 
