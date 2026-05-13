@@ -63,7 +63,9 @@ function App() {
   const [popCache, setPopCache] = useState({})
   const [jobsCache, setJobsCache] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
-  const [darkMode, setDarkMode] = useState(true)
+  const [darkMode, setDarkMode] = useState(
+    () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true
+  )
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -192,7 +194,7 @@ function App() {
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: MAP_STYLES.dark,
+      style: darkMode ? MAP_STYLES.dark : MAP_STYLES.light,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: INITIAL_ZOOM,
@@ -201,7 +203,7 @@ function App() {
     })
 
     mapRef.current.on('load', () => {
-      loadAllH3Layers(mapRef.current, true)
+      loadAllH3Layers(mapRef.current, darkMode)
       setLayersReady(true)
 
       mapRef.current.on('click', 'amenity-points', (e) => {
