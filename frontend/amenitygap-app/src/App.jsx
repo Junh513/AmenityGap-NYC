@@ -37,6 +37,12 @@ const DEFAULT_BOROUGH_MULTIPLIERS = {
   'Staten Island': 1.0,
 }
 
+const SPILLOVER_DEFAULTS_BY_RES = {
+  7: { ring1: 0.10, ring2: 0.00 },
+  8: { ring1: 0.40, ring2: 0.15 },
+  9: { ring1: 0.60, ring2: 0.30 },
+}
+
 function App() {
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
@@ -70,8 +76,8 @@ function App() {
   const [minPopulation, setMinPopulation] = useState(500)
   const [daytimeWeight, setDaytimeWeight] = useState(0.5)
   const [pendingDaytimeWeight, setPendingDaytimeWeight] = useState(0.5)
-  const [demandSpillover, setDemandSpillover] = useState({ ring1: 0.5, ring2: 0.2 })
-  const [supplySpillover, setSupplySpillover] = useState({ ring1: 0.5, ring2: 0.2 })
+  const [demandSpillover, setDemandSpillover] = useState(SPILLOVER_DEFAULTS_BY_RES[7])
+  const [supplySpillover, setSupplySpillover] = useState(SPILLOVER_DEFAULTS_BY_RES[7])
   const [weightsPopupPos, setWeightsPopupPos] = useState(null)
   const [boroughPopupPos, setBoroughPopupPos] = useState(null)
   const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
@@ -365,6 +371,13 @@ function App() {
     if (activeTab !== 'map' || !mapRef.current) return
     requestAnimationFrame(() => mapRef.current?.resize())
   }, [activeTab])
+
+  useEffect(() => {
+    const defaults = SPILLOVER_DEFAULTS_BY_RES[resolution]
+    if (!defaults) return
+    setDemandSpillover(defaults)
+    setSupplySpillover(defaults)
+  }, [resolution])
 
   useEffect(() => {
     if (!mapRef.current || !layersReady || !selectedAmenity || !cellMetadata) return
@@ -791,7 +804,7 @@ function App() {
                 </div>
               </div>
             ))}
-            <button className="reset-btn" onClick={() => setDemandSpillover({ ring1: 0.5, ring2: 0.2 })}>
+            <button className="reset-btn" onClick={() => setDemandSpillover(SPILLOVER_DEFAULTS_BY_RES[resolution])}>
               Reset Defaults
             </button>
           </div>
@@ -826,7 +839,7 @@ function App() {
                 </div>
               </div>
             ))}
-            <button className="reset-btn" onClick={() => setSupplySpillover({ ring1: 0.5, ring2: 0.2 })}>
+            <button className="reset-btn" onClick={() => setSupplySpillover(SPILLOVER_DEFAULTS_BY_RES[resolution])}>
               Reset Defaults
             </button>
           </div>
