@@ -13,7 +13,7 @@ export default function LandingPage({ onEnter }) {
         <p className="landing-tagline">Bridging the Gap — Raw Urban Data to Business Opportunity</p>
 
         <button className="landing-cta" onClick={onEnter}>
-          Explore the Map →
+          Learn More →
         </button>
       </div>
 
