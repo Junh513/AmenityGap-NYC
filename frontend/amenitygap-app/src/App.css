@@ -104,6 +104,7 @@ html, body, #root {
 }
 
 .panel-title {
+  position: relative;
   font-size: 0.95rem;
   font-weight: bold;
   margin-bottom: 10px;
@@ -113,6 +114,103 @@ html, body, #root {
   background-color: #c8dbd6;
   border-radius: 6px;
   padding: 4px;
+}
+
+.help-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #5a90b8;
+  background-color: white;
+  color: #5a90b8;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-style: normal;
+}
+
+.help-btn:hover {
+  background-color: #5a90b8;
+  color: white;
+}
+
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.help-modal {
+  width: 480px;
+  max-width: 90vw;
+  max-height: 80vh;
+  padding: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: #7ab8b0 #e8efed;
+}
+
+.help-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.help-modal::-webkit-scrollbar-track {
+  background: #e8efed;
+  border-radius: 4px;
+}
+
+.help-modal::-webkit-scrollbar-thumb {
+  background: #7ab8b0;
+  border-radius: 4px;
+}
+
+.help-modal::-webkit-scrollbar-thumb:hover {
+  background: #5f9ea0;
+}
+
+.help-content {
+  font-size: 0.78rem;
+  color: #2a3a48;
+  line-height: 1.5;
+}
+
+.help-content p {
+  margin-bottom: 12px;
+}
+
+.help-section {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e8ee;
+}
+
+.help-section:last-child {
+  border-bottom: none;
+}
+
+.help-term {
+  font-weight: bold;
+  font-size: 0.82rem;
+  color: #1a3d38;
+  margin-bottom: 3px;
+}
+
+.help-desc {
+  font-size: 0.75rem;
+  color: #556070;
+  line-height: 1.55;
 }
 
 .amenity-select {

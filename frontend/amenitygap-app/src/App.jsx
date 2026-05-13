@@ -50,6 +50,7 @@ function App() {
   const boroughBtnRef = useRef(null)
   const demandSpillBtnRef = useRef(null)
   const supplySpillBtnRef = useRef(null)
+  const scoreHelpBtnRef = useRef(null)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
@@ -88,6 +89,7 @@ function App() {
   const [boroughPopupPos, setBoroughPopupPos] = useState(null)
   const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
   const [supplySpillPopupPos, setSupplySpillPopupPos] = useState(null)
+  const [showHelp, setShowHelp] = useState(false)
   const [cellMetadata, setCellMetadata] = useState(null)
 
   const dMinLand = useDebouncedValue(minLandFraction)
@@ -429,7 +431,7 @@ function App() {
 
   if (showLanding) 
   {
-    return <LandingPage onEnter={() => setShowLanding(false)} />
+    return <LandingPage onEnter={() => { setActiveTab('about'); setShowLanding(false) }} />
   }
 
 
@@ -494,7 +496,20 @@ function App() {
 
           {/* Opportunity Score Panel */}
           <div className="panel-card">
-            <h3 className="panel-title italic">Opportunity Score</h3>
+            <h3 className="panel-title italic">
+              Opportunity Score
+              <button
+                ref={scoreHelpBtnRef}
+                className="help-btn"
+                onClick={() => {
+                  setWeightsPopupPos(null)
+                  setBoroughPopupPos(null)
+                  setDemandSpillPopupPos(null)
+                  setSupplySpillPopupPos(null)
+                  setShowHelp(true)
+                }}
+              >?</button>
+            </h3>
 
             {/* Amenity Weights */}
             <div className="score-row">
@@ -502,7 +517,7 @@ function App() {
               <button
                 ref={weightsBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -512,7 +527,7 @@ function App() {
               <button
                 ref={boroughBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -522,7 +537,7 @@ function App() {
               <button
                 ref={demandSpillBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos])}
+                onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -532,7 +547,7 @@ function App() {
               <button
                 ref={supplySpillBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos])}
+                onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -905,6 +920,68 @@ function App() {
             <button className="reset-btn" onClick={() => setSupplySpillover(SPILLOVER_DEFAULTS_BY_RES[resolution])}>
               Reset Defaults
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Opportunity Score Help Popup */}
+      {showHelp && (
+        <div className="help-overlay" onClick={() => setShowHelp(false)}>
+          <div className="popup-modal help-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <h3>How Opportunity Score Works</h3>
+            </div>
+            <div className="help-content">
+              <p>
+                Score = gap between <b>expected demand</b> and <b>actual supply</b>, normalized to ±100.
+                Positive = underserved (opportunity). Negative = oversupplied. Grey = excluded by filters.
+              </p>
+
+              <div className="help-section">
+                <div className="help-term">Amenity Weights</div>
+                <div className="help-desc">Ideal people-per-amenity ratio. 1500 deli weight = 1 deli serves 1500 people.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Borough Multipliers</div>
+                <div className="help-desc">Scales demand per borough. Manhattan 1.5 = treat 1 resident as 1.5 effective demand.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Demand Spillover (Ring 1 / Ring 2)</div>
+                <div className="help-desc">How much population + workers from neighbor cells count toward this cell's demand. Walking radius. Defaults scale by resolution.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Supply Spillover (Ring 1 / Ring 2)</div>
+                <div className="help-desc">How much amenities in neighbor cells count toward this cell's supply. Same walking logic.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Min Land %</div>
+                <div className="help-desc">Excludes cells mostly water or park. Default 25%.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Min Population</div>
+                <div className="help-desc">Excludes sparse cells where small denominators distort score. Default 500.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Daytime Weight</div>
+                <div className="help-desc">Blend of residents (0%) vs workers (100%). Deli serves daytime workers; pharmacy serves residents.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Formula</div>
+                <div className="help-desc">
+                  effectivePop = blended demand × borough multiplier<br/>
+                  expectedNeed = effectivePop / idealRatio<br/>
+                  gap = expectedNeed − effectiveSupply<br/>
+                  score = clamp(gap / expectedNeed × 100, −100, +100)
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
