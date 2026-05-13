@@ -37,6 +37,12 @@ const DEFAULT_BOROUGH_MULTIPLIERS = {
   'Staten Island': 1.0,
 }
 
+const SPILLOVER_DEFAULTS_BY_RES = {
+  7: { ring1: 0.10, ring2: 0.00 },
+  8: { ring1: 0.40, ring2: 0.15 },
+  9: { ring1: 0.60, ring2: 0.30 },
+}
+
 function App() {
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
@@ -44,6 +50,7 @@ function App() {
   const boroughBtnRef = useRef(null)
   const demandSpillBtnRef = useRef(null)
   const supplySpillBtnRef = useRef(null)
+  const scoreHelpBtnRef = useRef(null)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
@@ -57,7 +64,9 @@ function App() {
   const [popCache, setPopCache] = useState({})
   const [jobsCache, setJobsCache] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
-  const [darkMode, setDarkMode] = useState(true)
+  const [darkMode, setDarkMode] = useState(
+    () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true
+  )
   const [satellite, setSatellite] = useState(false)
   const [usingCache, setUsingCache] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -70,12 +79,17 @@ function App() {
   const [minPopulation, setMinPopulation] = useState(500)
   const [daytimeWeight, setDaytimeWeight] = useState(0.5)
   const [pendingDaytimeWeight, setPendingDaytimeWeight] = useState(0.5)
-  const [demandSpillover, setDemandSpillover] = useState({ ring1: 0.5, ring2: 0.2 })
-  const [supplySpillover, setSupplySpillover] = useState({ ring1: 0.5, ring2: 0.2 })
+  const [minScoreFilter, setMinScoreFilter] = useState(-100)
+  const [pendingMinScore, setPendingMinScore] = useState(-100)
+  const [minAmenityCount, setMinAmenityCount] = useState(0)
+  const [pendingMinAmenityCount, setPendingMinAmenityCount] = useState(0)
+  const [demandSpillover, setDemandSpillover] = useState(SPILLOVER_DEFAULTS_BY_RES[7])
+  const [supplySpillover, setSupplySpillover] = useState(SPILLOVER_DEFAULTS_BY_RES[7])
   const [weightsPopupPos, setWeightsPopupPos] = useState(null)
   const [boroughPopupPos, setBoroughPopupPos] = useState(null)
   const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
   const [supplySpillPopupPos, setSupplySpillPopupPos] = useState(null)
+  const [showHelp, setShowHelp] = useState(false)
   const [cellMetadata, setCellMetadata] = useState(null)
 
   const dMinLand = useDebouncedValue(minLandFraction)
@@ -85,6 +99,8 @@ function App() {
   const dBoroughMultipliers = useDebouncedValue(boroughMultipliers)
   const dDemandSpillover = useDebouncedValue(demandSpillover)
   const dSupplySpillover = useDebouncedValue(supplySpillover)
+  const dMinScoreFilter = useDebouncedValue(minScoreFilter)
+  const dMinAmenityCount = useDebouncedValue(minAmenityCount)
 
   const toggleFlyout = (btnRef, currentPos, setPos, closeOthers = []) => {
     if (currentPos) {
@@ -180,7 +196,7 @@ function App() {
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: MAP_STYLES.dark,
+      style: darkMode ? MAP_STYLES.dark : MAP_STYLES.light,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: INITIAL_ZOOM,
@@ -189,7 +205,7 @@ function App() {
     })
 
     mapRef.current.on('load', () => {
-      loadAllH3Layers(mapRef.current, true)
+      loadAllH3Layers(mapRef.current, darkMode)
       setLayersReady(true)
 
       mapRef.current.on('click', 'amenity-points', (e) => {
@@ -255,7 +271,6 @@ function App() {
       }
 
       setAmenityCache(cache)
-      setUsingCache(fromCache)
 
       // Initialize weights for any new amenity types
       setAmenityWeights(prev => {
@@ -313,23 +328,32 @@ function App() {
       }
 
       // Load cell metadata
+      let metaLoaded = false
       try {
         const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
         if (!metaRes.ok) throw new Error('Backend error')
         const metaData = await metaRes.json()
         setCellMetadata(metaData)
+        metaLoaded = true
       } catch (err) {
-        console.error('Metadata fetch error:', err)
+        console.warn('Backend metadata unavailable, trying cache:', err.message)
+      }
+      if (!metaLoaded) {
         try {
           const fb = await fetch('/cache/cell-metadata.json')
-          setCellMetadata(await fb.json())
-        } catch {
-          console.error('No cell metadata available')
+          if (!fb.ok) throw new Error(`cache miss ${fb.status}`)
+          const metaData = await fb.json()
+          if (!metaData || typeof metaData !== 'object') throw new Error('bad metadata shape')
+          setCellMetadata(metaData)
+          fromCache = true
+        } catch (err) {
+          console.error('No cell metadata available:', err.message)
         }
       }
 
       setPopCache(popData)
       setJobsCache(jobsData)
+      setUsingCache(fromCache)
       setLoading(false)
     }
 
@@ -367,6 +391,13 @@ function App() {
   }, [activeTab])
 
   useEffect(() => {
+    const defaults = SPILLOVER_DEFAULTS_BY_RES[resolution]
+    if (!defaults) return
+    setDemandSpillover(defaults)
+    setSupplySpillover(defaults)
+  }, [resolution])
+
+  useEffect(() => {
     if (!mapRef.current || !layersReady || !selectedAmenity || !cellMetadata) return
     if (!amenityCache[selectedAmenity] || !popCache[resolution]) return
 
@@ -385,16 +416,22 @@ function App() {
         daytimeWeight: dDaytimeWeight,
         demandSpillover: dDemandSpillover,
         supplySpillover: dSupplySpillover,
+        minAmenityCount: dMinAmenityCount,
       }
     )
 
-    applyOpportunityScores(mapRef.current, scores, resolution)
-  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, dAmenityWeights, dBoroughMultipliers, dMinLand, dMinPop, dDaytimeWeight, dDemandSpillover, dSupplySpillover])
+    const filtered = {}
+    for (const [cellId, score] of Object.entries(scores)) {
+      filtered[cellId] = (score == null || score < dMinScoreFilter) ? null : score
+    }
+
+    applyOpportunityScores(mapRef.current, filtered, resolution)
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, dAmenityWeights, dBoroughMultipliers, dMinLand, dMinPop, dDaytimeWeight, dDemandSpillover, dSupplySpillover, dMinScoreFilter, dMinAmenityCount])
 
 
   if (showLanding) 
   {
-    return <LandingPage onEnter={() => setShowLanding(false)} />
+    return <LandingPage onEnter={() => { setActiveTab('about'); setShowLanding(false) }} />
   }
 
 
@@ -459,7 +496,20 @@ function App() {
 
           {/* Opportunity Score Panel */}
           <div className="panel-card">
-            <h3 className="panel-title italic">Opportunity Score</h3>
+            <h3 className="panel-title italic">
+              Opportunity Score
+              <button
+                ref={scoreHelpBtnRef}
+                className="help-btn"
+                onClick={() => {
+                  setWeightsPopupPos(null)
+                  setBoroughPopupPos(null)
+                  setDemandSpillPopupPos(null)
+                  setSupplySpillPopupPos(null)
+                  setShowHelp(true)
+                }}
+              >?</button>
+            </h3>
 
             {/* Amenity Weights */}
             <div className="score-row">
@@ -467,7 +517,7 @@ function App() {
               <button
                 ref={weightsBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+                onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -477,7 +527,7 @@ function App() {
               <button
                 ref={boroughBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos])}
+                onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -487,7 +537,7 @@ function App() {
               <button
                 ref={demandSpillBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos])}
+                onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
@@ -497,69 +547,82 @@ function App() {
               <button
                 ref={supplySpillBtnRef}
                 className="score-btn"
-                onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos])}
+                onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
 
-            {/* Min Land Fraction */}
-            <div className="control-group">
-              <label className="control-label">
-                Min Land: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="100" step="1"
+            <div className="panel-subsection">
+              <div className="panel-subtitle">Demographic Tuning</div>
+
+              <div className="control-group">
+                <label className="control-label">
+                  Min Land: <input
+                    type="number"
+                    className="inline-number"
+                    min="0" max="100" step="1"
+                    value={Math.round(minLandFraction * 100)}
+                    onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
+                  />%
+                </label>
+                <input
+                  type="range" min="0" max="100" step="1"
                   value={Math.round(minLandFraction * 100)}
-                  onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
-                />%
-              </label>
-              <input
-                type="range" min="0" max="100" step="1"
-                value={Math.round(minLandFraction * 100)}
-                onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
-              />
-            </div>
-
-            {/* Min Population */}
-            <div className="control-group">
-              <label className="control-label">
-                Min Population: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="50000" step="100"
-                  value={minPopulation}
-                  onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
+                  onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
                 />
-              </label>
-              <input
-                type="range" min="0" max="10000" step="100"
-                value={minPopulation}
-                onChange={(e) => setMinPopulation(Number(e.target.value))}
-              />
-            </div>
+              </div>
 
-            {/* Daytime Weight */}
-            <div className="control-group">
-              <label className="control-label">
-                Daytime Weight: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="100" step="1"
+              <div className="control-group">
+                <label className="control-label">
+                  Min Population: <input
+                    type="number"
+                    className="inline-number"
+                    min="0" max="50000" step="100"
+                    value={minPopulation}
+                    onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
+                  />
+                </label>
+                <input
+                  type="range" min="0" max="10000" step="100"
+                  value={minPopulation}
+                  onChange={(e) => setMinPopulation(Number(e.target.value))}
+                />
+              </div>
+
+              <div className="control-group">
+                <label className="control-label">
+                  Daytime Weight: <input
+                    type="number"
+                    className="inline-number"
+                    min="0" max="100" step="1"
+                    value={Math.round(pendingDaytimeWeight * 100)}
+                    onChange={(e) => {
+                      const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
+                      setPendingDaytimeWeight(v)
+                      setDaytimeWeight(v)
+                    }}
+                  />%
+                </label>
+                <input
+                  type="range" min="0" max="100" step="1"
                   value={Math.round(pendingDaytimeWeight * 100)}
-                  onChange={(e) => {
-                    const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
-                    setPendingDaytimeWeight(v)
-                    setDaytimeWeight(v)
-                  }}
-                />%
-              </label>
-              <input
-                type="range" min="0" max="100" step="1"
-                value={Math.round(pendingDaytimeWeight * 100)}
-                onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
-                onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
-                onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
-              />
-              <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+                  onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
+                  onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
+                  onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
+                />
+                <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+              </div>
+
+              <button
+                className="reset-btn"
+                onClick={() => {
+                  setMinLandFraction(0.25)
+                  setMinPopulation(500)
+                  setDaytimeWeight(0.5)
+                  setPendingDaytimeWeight(0.5)
+                }}
+              >
+                Reset Defaults
+              </button>
             </div>
           </div>
 
@@ -567,21 +630,49 @@ function App() {
             <h3 className="panel-title italic">Data Filters</h3>
 
             <div className="control-group">
-              <label className="control-label">Population Density</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
+              <label className="control-label">
+                Min Amenity Count: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="50" step="1"
+                  value={pendingMinAmenityCount}
+                  onChange={(e) => {
+                    const v = Math.min(50, Math.max(0, Number(e.target.value)))
+                    setPendingMinAmenityCount(v)
+                    setMinAmenityCount(v)
+                  }}
+                />
+              </label>
+              <input
+                type="range" min="0" max="50" step="1"
+                value={pendingMinAmenityCount}
+                onChange={(e) => setPendingMinAmenityCount(Number(e.target.value))}
+                onMouseUp={() => setMinAmenityCount(pendingMinAmenityCount)}
+                onTouchEnd={() => setMinAmenityCount(pendingMinAmenityCount)}
+              />
             </div>
 
             <div className="control-group">
-              <label className="control-label">Competitors per Cell</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
-            </div>
-
-            <div className="control-group">
-              <label className="control-label">Opportunity Score</label>
-              <input type="range" min="0" max="100" step="1" disabled />
-              <span className="filter-coming-soon">Coming soon</span>
+              <label className="control-label">
+                Min Opportunity Score: <input
+                  type="number"
+                  className="inline-number"
+                  min="-100" max="100" step="1"
+                  value={pendingMinScore}
+                  onChange={(e) => {
+                    const v = Math.min(100, Math.max(-100, Number(e.target.value)))
+                    setPendingMinScore(v)
+                    setMinScoreFilter(v)
+                  }}
+                />
+              </label>
+              <input
+                type="range" min="-100" max="100" step="1"
+                value={pendingMinScore}
+                onChange={(e) => setPendingMinScore(Number(e.target.value))}
+                onMouseUp={() => setMinScoreFilter(pendingMinScore)}
+                onTouchEnd={() => setMinScoreFilter(pendingMinScore)}
+              />
             </div>
           </div>
 
@@ -791,7 +882,7 @@ function App() {
                 </div>
               </div>
             ))}
-            <button className="reset-btn" onClick={() => setDemandSpillover({ ring1: 0.5, ring2: 0.2 })}>
+            <button className="reset-btn" onClick={() => setDemandSpillover(SPILLOVER_DEFAULTS_BY_RES[resolution])}>
               Reset Defaults
             </button>
           </div>
@@ -826,9 +917,71 @@ function App() {
                 </div>
               </div>
             ))}
-            <button className="reset-btn" onClick={() => setSupplySpillover({ ring1: 0.5, ring2: 0.2 })}>
+            <button className="reset-btn" onClick={() => setSupplySpillover(SPILLOVER_DEFAULTS_BY_RES[resolution])}>
               Reset Defaults
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Opportunity Score Help Popup */}
+      {showHelp && (
+        <div className="help-overlay" onClick={() => setShowHelp(false)}>
+          <div className="popup-modal help-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <h3>How Opportunity Score Works</h3>
+            </div>
+            <div className="help-content">
+              <p>
+                Score = gap between <b>expected demand</b> and <b>actual supply</b>, normalized to ±100.
+                Positive = underserved (opportunity). Negative = oversupplied. Grey = excluded by filters.
+              </p>
+
+              <div className="help-section">
+                <div className="help-term">Amenity Weights</div>
+                <div className="help-desc">Ideal people-per-amenity ratio. 1500 deli weight = 1 deli serves 1500 people.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Borough Multipliers</div>
+                <div className="help-desc">Scales demand per borough. Manhattan 1.5 = treat 1 resident as 1.5 effective demand.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Demand Spillover (Ring 1 / Ring 2)</div>
+                <div className="help-desc">How much population + workers from neighbor cells count toward this cell's demand. Walking radius. Defaults scale by resolution.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Supply Spillover (Ring 1 / Ring 2)</div>
+                <div className="help-desc">How much amenities in neighbor cells count toward this cell's supply. Same walking logic.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Min Land %</div>
+                <div className="help-desc">Excludes cells mostly water or park. Default 25%.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Min Population</div>
+                <div className="help-desc">Excludes sparse cells where small denominators distort score. Default 500.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Daytime Weight</div>
+                <div className="help-desc">Blend of residents (0%) vs workers (100%). Deli serves daytime workers; pharmacy serves residents.</div>
+              </div>
+
+              <div className="help-section">
+                <div className="help-term">Formula</div>
+                <div className="help-desc">
+                  effectivePop = blended demand × borough multiplier<br/>
+                  expectedNeed = effectivePop / idealRatio<br/>
+                  gap = expectedNeed − effectiveSupply<br/>
+                  score = clamp(gap / expectedNeed × 100, −100, +100)
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

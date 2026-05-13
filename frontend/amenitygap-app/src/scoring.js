@@ -52,6 +52,7 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
     daytimeWeight = 0,
     demandSpillover = { ring1: 0.5, ring2: 0.2 },
     supplySpillover = { ring1: 0.5, ring2: 0.2 },
+    minAmenityCount = 0,
   } = config
   const h3Key = `h3_res${resolution}`
 
@@ -84,6 +85,11 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
     if (Number(meta.resolution) !== resolution) continue
 
     if (meta.land_fraction < minLandFraction) {
+      scores[cellId] = null
+      continue
+    }
+
+    if ((counts[cellId] || 0) < minAmenityCount) {
       scores[cellId] = null
       continue
     }

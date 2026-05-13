@@ -1,15 +1,9 @@
-/* ─── PAGE SHELL ─────────────────────────────────────────────────── */
-/* outer wrapper for the whole about page */
 .about-page {
   width: 100%;
   font-family: 'Times New Roman', Times, serif;
   background: #f2f5f4;
 }
 
-
-/* ─── HERO SECTION ───────────────────────────────────────────────── */
-/* full width dark teal section at the top
-   the canvas sits inside this as an absolute element behind everything */
 .about-hero {
   position: relative;
   width: 100%;
@@ -21,19 +15,14 @@
   justify-content: center;
 }
 
-/* canvas is absolute so it fills the entire hero behind the labels and title */
 .about-hero-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;   /* so the canvas doesnt block clicks on anything above it */
+  pointer-events: none;
 }
 
-
-/* ─── BOROUGH LABELS ─────────────────────────────────────────────── */
-/* container fills the hero so labels can be positioned anywhere inside it
-   individual label positions are set inline in the JSX using left/top % */
 .about-borough-labels {
   position: absolute;
   inset: 0;
@@ -47,13 +36,10 @@
   font-size: 0.6rem;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(240, 250, 248, 0.3);    /* very faint so they dont compete with the hexes */
-  transform: translate(-50%, -50%);   /* centers the label on its left/top position */
+  color: rgba(240, 250, 248, 0.3);
+  transform: translate(-50%, -50%);
 }
 
-
-/* ─── HERO TITLE ─────────────────────────────────────────────────── */
-/* margin-top pushes the title down so the hex animation shows above it */
 .about-hero-content {
   position: relative;
   z-index: 10;
@@ -77,10 +63,6 @@
   margin: 0;
 }
 
-
-/* ─── LEGEND STRIP ───────────────────────────────────────────────── */
-/* pinned to the bottom center of the hero
-   explains what the green/yellow/red hex colors mean */
 .about-hero-legend {
   position: absolute;
   bottom: 18px;
@@ -97,7 +79,6 @@
   white-space: nowrap;
 }
 
-/* small colored circle next to each legend label */
 .legend-dot {
   width: 4px;
   height: 4px;
@@ -105,9 +86,6 @@
   display: inline-block;
 }
 
-
-/* ─── STATS ROW ──────────────────────────────────────────────────── */
-/* dark teal band directly below the hero with four key numbers */
 .about-stats-row {
   display: flex;
   align-items: center;
@@ -140,16 +118,12 @@
   text-align: center;
 }
 
-/* thin vertical line between each stat */
 .about-stat-divider {
   width: 1px;
   height: 36px;
   background: rgba(122, 184, 176, 0.2);
 }
 
-
-/* ─── MAIN CONTENT ───────────────────────────────────────────────── */
-/* light background section that holds the cards, grid, ETL, and CTA */
 .about-main {
   padding: 32px 32px 40px;
   display: flex;
@@ -157,9 +131,6 @@
   gap: 28px;
 }
 
-
-/* ─── INFO CARDS ─────────────────────────────────────────────────── */
-/* three equal cards in a row: Problem, Solution, Who It's For */
 .about-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -176,7 +147,6 @@
   text-align: center;
 }
 
-/* accent border shows on hover to add interactivity */
 .about-card:hover {
   border-left-color: #5f9ea0;
 }
@@ -189,7 +159,6 @@
   margin-bottom: 10px;
 }
 
-/* short teal line under each card title */
 .about-card-divider {
   width: 28px;
   height: 2px;
@@ -204,16 +173,12 @@
   font-family: 'Times New Roman', Times, serif;
 }
 
-
-/* ─── BOTTOM GRID ────────────────────────────────────────────────── */
-/* two column layout: How It Works on the left, Data Sources on the right */
 .about-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
 
-/* shared section title style used by How It Works, Data Sources, and ETL Pipeline */
 .about-section-title {
   font-family: 'Bebas Neue', cursive;
   font-size: 1rem;
@@ -225,8 +190,6 @@
   border-bottom: 1px solid #cdddd8;
 }
 
-
-/* ─── HOW IT WORKS ───────────────────────────────────────────────── */
 .about-howit {
   background: white;
   border-radius: 12px;
@@ -239,9 +202,6 @@
   flex-direction: column;
 }
 
-/* steps start invisible and shifted left
-   the 'visible' class is added by the IntersectionObserver in AboutPage.jsx
-   which triggers the transition to slide and fade each step in */
 .about-step {
   display: flex;
   gap: 14px;
@@ -257,7 +217,6 @@
   transform: translateX(0);
 }
 
-/* numbered circle on the left side of each step */
 .about-step-circle {
   width: 28px;
   height: 28px;
@@ -275,7 +234,6 @@
   z-index: 1;
 }
 
-/* vertical line connecting each step to the one below it */
 .about-step-line {
   position: absolute;
   left: 14px;
@@ -285,7 +243,6 @@
   background: linear-gradient(to bottom, #5f9ea0, #cdddd8);
 }
 
-/* the last step has no connector line below it */
 .about-step-line--last {
   display: none;
 }
@@ -310,8 +267,6 @@
   font-family: 'Times New Roman', Times, serif;
 }
 
-
-/* ─── DATA SOURCES ───────────────────────────────────────────────── */
 .about-datasources {
   background: white;
   border-radius: 12px;
@@ -321,7 +276,6 @@
   flex-direction: column;
 }
 
-/* negative margin pulls the source cards up closer to the title */
 .about-source-cards {
   display: flex;
   flex-direction: column;
@@ -359,9 +313,6 @@
   font-family: 'Times New Roman', Times, serif;
 }
 
-
-/* ─── CTA BAND ───────────────────────────────────────────────────── */
-/* sits at the bottom of the page, text on the left and button on the right */
 .about-cta-band {
   background: #f2f5f4;
   border: 1.3px solid #0d3427;
@@ -406,12 +357,6 @@
   transform: translateY(-2px);
 }
 
-
-/* ─── ETL PIPELINE ANIMATIONS ────────────────────────────────────── */
-/* nodes and arrows start invisible, the 'visible' class is added by the
-   IntersectionObserver in AboutPage.jsx when the section scrolls into view */
-
-/* nodes slide in from the left */
 .etl-node {
   opacity: 0;
   transform: translateX(-20px);
@@ -423,7 +368,6 @@
   transform: translateX(0);
 }
 
-/* arrows just fade in, no slide */
 .etl-arrow {
   opacity: 0;
   transition: opacity 0.3s ease;
