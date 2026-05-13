@@ -256,7 +256,7 @@ input[type='range'] {
 .cache-warning {
   position: absolute;
   top: 10px;
-  left: 1270px;
+  right: 10px;
   background-color: rgba(255, 180, 0, 0.9);
   color: #333;
   padding: 6px 12px;
@@ -270,7 +270,6 @@ input[type='range'] {
 .cache-warning.loading {
   background-color: rgba(100, 160, 255, 0.9);
   color: white;
-  left: 1430px;
 }
 
 .score-row {

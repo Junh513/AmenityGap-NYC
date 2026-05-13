@@ -269,7 +269,6 @@ function App() {
       }
 
       setAmenityCache(cache)
-      setUsingCache(fromCache)
 
       // Initialize weights for any new amenity types
       setAmenityWeights(prev => {
@@ -327,23 +326,32 @@ function App() {
       }
 
       // Load cell metadata
+      let metaLoaded = false
       try {
         const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
         if (!metaRes.ok) throw new Error('Backend error')
         const metaData = await metaRes.json()
         setCellMetadata(metaData)
+        metaLoaded = true
       } catch (err) {
-        console.error('Metadata fetch error:', err)
+        console.warn('Backend metadata unavailable, trying cache:', err.message)
+      }
+      if (!metaLoaded) {
         try {
           const fb = await fetch('/cache/cell-metadata.json')
-          setCellMetadata(await fb.json())
-        } catch {
-          console.error('No cell metadata available')
+          if (!fb.ok) throw new Error(`cache miss ${fb.status}`)
+          const metaData = await fb.json()
+          if (!metaData || typeof metaData !== 'object') throw new Error('bad metadata shape')
+          setCellMetadata(metaData)
+          fromCache = true
+        } catch (err) {
+          console.error('No cell metadata available:', err.message)
         }
       }
 
       setPopCache(popData)
       setJobsCache(jobsData)
+      setUsingCache(fromCache)
       setLoading(false)
     }
 
