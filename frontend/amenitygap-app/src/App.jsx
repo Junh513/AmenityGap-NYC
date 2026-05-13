@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyJobsData, applyOpportunityScores } from './h3Layer'
 import { calculateOpportunityScores } from './scoring'
+import { useDebouncedValue } from './useDebouncedValue'
 import './App.css'
 
 const INITIAL_CENTER = [-73.9712, 40.6942]
@@ -61,6 +62,7 @@ function App() {
   const [minLandFraction, setMinLandFraction] = useState(0.25)
   const [minPopulation, setMinPopulation] = useState(500)
   const [daytimeWeight, setDaytimeWeight] = useState(0.5)
+  const [pendingDaytimeWeight, setPendingDaytimeWeight] = useState(0.5)
   const [demandSpillover, setDemandSpillover] = useState({ ring1: 0.5, ring2: 0.2 })
   const [supplySpillover, setSupplySpillover] = useState({ ring1: 0.5, ring2: 0.2 })
   const [weightsPopupPos, setWeightsPopupPos] = useState(null)
@@ -68,6 +70,14 @@ function App() {
   const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
   const [supplySpillPopupPos, setSupplySpillPopupPos] = useState(null)
   const [cellMetadata, setCellMetadata] = useState(null)
+
+  const dMinLand = useDebouncedValue(minLandFraction)
+  const dMinPop = useDebouncedValue(minPopulation)
+  const dDaytimeWeight = useDebouncedValue(daytimeWeight)
+  const dAmenityWeights = useDebouncedValue(amenityWeights)
+  const dBoroughMultipliers = useDebouncedValue(boroughMultipliers)
+  const dDemandSpillover = useDebouncedValue(demandSpillover)
+  const dSupplySpillover = useDebouncedValue(supplySpillover)
 
   const toggleFlyout = (btnRef, currentPos, setPos, closeOthers = []) => {
     if (currentPos) {
@@ -355,20 +365,20 @@ function App() {
       selectedAmenity,
       resolution,
       {
-        amenityWeights,
-        boroughMultipliers,
-        minLandFraction,
-        minPopulation,
+        amenityWeights: dAmenityWeights,
+        boroughMultipliers: dBoroughMultipliers,
+        minLandFraction: dMinLand,
+        minPopulation: dMinPop,
         cellMetadata,
         jobsData: jobsCache[resolution] || [],
-        daytimeWeight,
-        demandSpillover,
-        supplySpillover,
+        daytimeWeight: dDaytimeWeight,
+        demandSpillover: dDemandSpillover,
+        supplySpillover: dSupplySpillover,
       }
     )
 
     applyOpportunityScores(mapRef.current, scores, resolution)
-  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, amenityWeights, boroughMultipliers, minLandFraction, minPopulation, daytimeWeight, demandSpillover, supplySpillover])
+  }, [selectedAmenity, resolution, layersReady, amenityCache, popCache, jobsCache, cellMetadata, dAmenityWeights, dBoroughMultipliers, dMinLand, dMinPop, dDaytimeWeight, dDemandSpillover, dSupplySpillover])
 
 
 
@@ -503,12 +513,24 @@ function App() {
             {/* Daytime Weight */}
             <div className="control-group">
               <label className="control-label">
-                Daytime Weight: {Math.round(daytimeWeight * 100)}%
+                Daytime Weight: <input
+                  type="number"
+                  className="inline-number"
+                  min="0" max="100" step="1"
+                  value={Math.round(pendingDaytimeWeight * 100)}
+                  onChange={(e) => {
+                    const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
+                    setPendingDaytimeWeight(v)
+                    setDaytimeWeight(v)
+                  }}
+                />%
               </label>
               <input
                 type="range" min="0" max="100" step="1"
-                value={Math.round(daytimeWeight * 100)}
-                onChange={(e) => setDaytimeWeight(Number(e.target.value) / 100)}
+                value={Math.round(pendingDaytimeWeight * 100)}
+                onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
+                onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
+                onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
               />
               <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
             </div>
