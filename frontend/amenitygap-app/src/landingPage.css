@@ -1,0 +1,182 @@
+/* ─── Landing Page Shell ─────────────────────────────────────────── */
+/* the shell is the full screen container that holds everything on the landing page
+   it uses flexbox to center the overlay content in the middle of the screen */
+.landing-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    180deg,
+    #6fa7ad 0%,
+    #5f8f98 38%,
+    #344c54 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: 'Times New Roman', Times, serif;
+}
+
+/* ─── Skyline ────────────────────────────────────────────────────── */
+/* the skyline sits pinned to the bottom of the screen behind everything else (z-index 1)
+   it starts invisible and slightly shifted down, then the skyRise animation slides it up into place */
+.skyline-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;           /* so the image doesnt block clicks */
+  opacity: 0;
+  transform: translateY(60px);
+  animation: skyRise 2.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+}
+
+/* the image is faded and desaturated so it acts as a background texture, not a focal point */
+.skyline-image {
+  width: 100%;
+  max-width: 1600px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  opacity: 0.18;                  /* very faint so it doesnt compete with the title */
+  filter: grayscale(1) brightness(1.25) contrast(0.85);
+}
+
+/* skyline rises up from the bottom on page load */
+@keyframes skyRise {
+  from { opacity: 0; transform: translateY(60px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ─── Center Overlay ─────────────────────────────────────────────── */
+/* the overlay holds the title, tagline, and button
+   it starts zoomed in and blurry then zooms out to normal — creates a cinematic reveal effect
+   the 0.9s delay lets the skyline start rising first before the text appears */
+.landing-overlay {
+  position: relative;
+  z-index: 10;                    /* sits above the skyline and the bottom fade */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 120px;           /* pushes content up so it doesnt sit on top of the skyline */
+  opacity: 0;
+  transform: scale(2.2) translateY(-8px);
+  filter: blur(12px);
+  animation: zoomReveal 2.8s cubic-bezier(0.16, 1, 0.3, 1) 0.9s forwards;
+}
+
+/* starts zoomed in and blurry, then sharpens and scales down to 1 */
+@keyframes zoomReveal {
+  0%   { opacity: 0; transform: scale(2.2) translateY(-8px); filter: blur(12px); }
+  40%  { opacity: 1; filter: blur(2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+
+
+/* ─── Title ──────────────────────────────────────────────────────── */
+/* clamp keeps the title from getting too big on large screens or too small on mobile */
+.landing-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: clamp(2.8rem, 6vw, 5rem);
+  font-weight: 400;
+  letter-spacing: 6px;
+  color: #f7fbfc;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+
+/* ─── Tagline ────────────────────────────────────────────────────── */
+.landing-tagline {
+  font-size: clamp(0.75rem, 1.2vw, 0.95rem);
+  color: rgba(247, 251, 252, 0.72);   /* slightly faded so it doesnt compete with the title */
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+
+/* ─── CTA Button ─────────────────────────────────────────────────── */
+/* the button fades in last after everything else has already appeared
+   the 3.2s delay is intentional — gives the title and skyline time to finish animating first */
+.landing-cta {
+  margin-top: 12px;
+  padding: 14px 48px;
+  background: rgba(255, 255, 255, 0.12);    /* semi-transparent so the gradient shows through */
+  border: 1.5px solid rgba(255, 255, 255, 0.48);
+  border-radius: 40px;
+  color: #f7fbfc;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 0.85rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s, border-color 0.25s, transform 0.15s;
+  opacity: 0;
+  animation: fadeUp 1s ease 3.2s forwards;
+}
+
+/* brightens the button slightly and lifts it up on hover */
+.landing-cta:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.75);
+  transform: translateY(-2px);
+}
+
+/* snaps back down when clicked */
+.landing-cta:active {
+  transform: translateY(0);
+}
+
+
+/* ─── Shared Fade-Up Animation ───────────────────────────────────── */
+/* reused by the CTA button — slides up while fading in */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ─── Bottom Gradient Fade ───────────────────────────────────────── */
+/* dark gradient at the bottom that blends the skyline into the page
+   sits above the skyline (z-index 2) but below the overlay (z-index 10) */
+.landing-fade-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(to top, rgba(34, 54, 60, 0.75), transparent);
+  z-index: 2;
+  pointer-events: none;
+}
+
+
+/* ─── Top Accent Line ────────────────────────────────────────────── */
+/* thin decorative line across the very top of the page
+   fades in from the edges so it doesnt look like a hard border */
+.landing-shell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 249, 248, 0.4) 30%,
+    rgba(245, 249, 248, 0.8) 50%,
+    rgba(245, 249, 248, 0.4) 70%,
+    transparent 100%
+  );
+  z-index: 20;
+}

@@ -20,7 +20,7 @@ const TILESET_MAXZOOM = {
   9: 12,
 };
 
-export function loadAllH3Layers(map, darkMode = true, onCellClick) {
+export function loadAllH3Layers(map, darkMode = true) {
   for (const res of ALL_RESOLUTIONS) {
     const sourceId = `h3-hexes-${res}`;
 
