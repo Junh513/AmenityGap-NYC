@@ -1,5 +1,44 @@
 import { gridDisk } from 'h3-js'
 
+const res9NeighborCache = new Map()
+
+function buildRes9Cache(cellMetadata) {
+  const built = new Map()
+  for (const [id, meta] of Object.entries(cellMetadata)) {
+    if (Number(meta.resolution) !== 9) continue
+    const disk1 = new Set(gridDisk(id, 1))
+    const disk2 = gridDisk(id, 2)
+    const ring1 = []
+    const ring2 = []
+    for (const n of disk2) {
+      if (n === id) continue
+      if (disk1.has(n)) ring1.push(n)
+      else ring2.push(n)
+    }
+    built.set(id, { ring1, ring2 })
+  }
+  return built
+}
+
+function getRingsCached(cellId, resolution, cellMetadata) {
+  if (resolution === 9) {
+    if (!res9NeighborCache.has(cellMetadata)) {
+      res9NeighborCache.set(cellMetadata, buildRes9Cache(cellMetadata))
+    }
+    return res9NeighborCache.get(cellMetadata).get(cellId) || { ring1: [], ring2: [] }
+  }
+  const disk1 = new Set(gridDisk(cellId, 1))
+  const disk2 = gridDisk(cellId, 2)
+  const ring1 = []
+  const ring2 = []
+  for (const n of disk2) {
+    if (n === cellId) continue
+    if (disk1.has(n)) ring1.push(n)
+    else ring2.push(n)
+  }
+  return { ring1, ring2 }
+}
+
 export function calculateOpportunityScores(amenities, populationData, amenityType, resolution, config) {
   if (!amenities || !populationData) return {}
 
@@ -49,17 +88,16 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
       continue
     }
 
-    const disk2 = gridDisk(cellId, 2)
-    const disk1Set = new Set(gridDisk(cellId, 1))
+    const { ring1, ring2 } = getRingsCached(cellId, resolution, cellMetadata)
     let ring1Demand = 0, ring2Demand = 0
     let ring1Supply = 0, ring2Supply = 0
-    for (const n of disk2) {
-      if (n === cellId) continue
-      const isRing1 = disk1Set.has(n)
-      const d = blendedPop(n)
-      const s = counts[n] || 0
-      if (isRing1) { ring1Demand += d; ring1Supply += s }
-      else { ring2Demand += d; ring2Supply += s }
+    for (const n of ring1) {
+      ring1Demand += blendedPop(n)
+      ring1Supply += counts[n] || 0
+    }
+    for (const n of ring2) {
+      ring2Demand += blendedPop(n)
+      ring2Supply += counts[n] || 0
     }
 
     const ownDemand = blendedPop(cellId)
