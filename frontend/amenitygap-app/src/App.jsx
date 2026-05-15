@@ -45,6 +45,7 @@ const SPILLOVER_DEFAULTS_BY_RES = {
 
 function App() {
   const mapRef = useRef(null)
+  const searchPopupRef = useRef(null)
   const mapContainerRef = useRef(null)
   const weightsBtnRef = useRef(null)
   const boroughBtnRef = useRef(null)
@@ -188,6 +189,82 @@ function App() {
     }
   }
 
+  const handleSearch = (query) => {
+    setSearchQuery(query)
+    if (searchPopupRef.current) {
+      searchPopupRef.current.remove()
+      searchPopupRef.current = null
+    }
+    if (!query || query.trim().length < 2) {
+      if (mapRef.current?.getSource('search-markers')) {
+        mapRef.current.getSource('search-markers').setData({ type: 'FeatureCollection', features: [] })
+      }
+      return
+    }
+  
+    const q = query.toLowerCase()
+    const allAmenities = Object.values(amenityCache).flat()
+  
+    const matches = allAmenities
+      .filter(a => a.name && a.name.toLowerCase().includes(q))
+      .slice(0, 50)
+  
+    if (!matches.length || !mapRef.current) return
+  
+    const geojson = {
+      type: 'FeatureCollection',
+      features: matches
+        .filter(a => a.lat && a.lng)
+        .map(a => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [a.lng, a.lat] },
+          properties: { name: a.name, type: a.amenity_type || '' }
+        }))
+    }
+  
+    if (mapRef.current.getSource('search-markers')) {
+      mapRef.current.getSource('search-markers').setData(geojson)
+    } else {
+      mapRef.current.addSource('search-markers', { type: 'geojson', data: geojson })
+      mapRef.current.addLayer({
+        id: 'search-points',
+        type: 'circle',
+        source: 'search-markers',
+        paint: {
+          'circle-color': '#5f9ea0',
+          'circle-radius': 4.5,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#fff'
+        }
+      })
+  
+      mapRef.current.on('click', 'search-points', (e) => {
+        e.originalEvent.stopPropagation()
+        const f = e.features[0]
+        if (searchPopupRef.current) {
+          searchPopupRef.current.remove()
+        }
+      
+        searchPopupRef.current = new mapboxgl.Popup({
+          className: 'search-popup'
+        })
+          .setLngLat(f.geometry.coordinates)
+          .setHTML(`<b>${f.properties.name}</b>`)
+          .addTo(mapRef.current)
+      })
+  
+      mapRef.current.on('mouseenter', 'search-points', () => mapRef.current.getCanvas().style.cursor = 'pointer')
+      mapRef.current.on('mouseleave', 'search-points', () => mapRef.current.getCanvas().style.cursor = '')
+    }
+  
+    const lngs = matches.map(a => a.lng)
+    const lats = matches.map(a => a.lat)
+    mapRef.current.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 60, maxZoom: 14 }
+    )
+  }
+
   useEffect(() => {
     
     if (showLanding) return
@@ -272,7 +349,6 @@ function App() {
 
       setAmenityCache(cache)
 
-      // Initialize weights for any new amenity types
       setAmenityWeights(prev => {
         const updated = { ...prev }
         for (const type of types) {
@@ -327,7 +403,6 @@ function App() {
         if (data) jobsData[res] = data
       }
 
-      // Load cell metadata
       let metaLoaded = false
       try {
         const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
@@ -454,20 +529,18 @@ function App() {
 
       <div className="content-area">
 
+        {activeTab === 'about' && (
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <AboutPage onExplore={() => setActiveTab('map')} />
+          </div>
+        )}
 
-    {activeTab === 'about' && (
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        <AboutPage onExplore={() => setActiveTab('map')} />
-      </div>
-    )}
+        {activeTab === 'data' && <DataPage />}
 
-    {activeTab === 'data' && <DataPage />}
+        <aside className="sidebar-panel" style={{ display: activeTab === 'map' ? 'flex' : 'none' }}>
 
-
-        <aside className="sidebar-panel" style={{display: activeTab === 'map' ? 'flex' : 'none'}}>
-
-
-          <div className="panel-card">
+          {/* Amenity select */}
+          <div className="sidebar-section sidebar-section--top">
             <select
               className="amenity-select"
               value={selectedAmenity}
@@ -482,22 +555,58 @@ function App() {
             </select>
           </div>
 
-          <div className="panel-card">
-            <div className="search-bar">
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <span className="search-icon">🔍</span>
-            </div>
-          </div>
+          {/* Search */}
+        <div className="sidebar-section">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search store name..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setSearchQuery('')
+                  if (mapRef.current?.getSource('search-markers')) {
+                    mapRef.current.getSource('search-markers').setData({
+                      type: 'FeatureCollection',
+                      features: []
+                    })
+                  }
+                }
+              }}
+            />
 
-          {/* Opportunity Score Panel */}
-          <div className="panel-card">
-            <h3 className="panel-title italic">
-              Opportunity Score
+            {searchQuery && (
+              <span
+                style={{
+                  cursor: 'pointer',
+                  color: '#88a0b4',
+                  fontSize: 14
+                }}
+                onClick={() => {
+                  setSearchQuery('')
+                  if (mapRef.current?.getSource('search-markers')) {
+                    mapRef.current.getSource('search-markers').setData({
+                      type: 'FeatureCollection',
+                      features: []
+                    })
+                  }
+                }}
+              >
+                ✕
+              </span>
+            )}
+
+            <span className="search-icon">🔍</span>
+          </div>
+        </div>
+
+        <div className="sidebar-divider" />
+
+          {/* Opportunity Score */}
+          <div className="sidebar-section">
+            <div className="section-header">
+              <span className="section-title">Opportunity Score</span>
               <button
                 ref={scoreHelpBtnRef}
                 className="help-btn"
@@ -509,9 +618,8 @@ function App() {
                   setShowHelp(true)
                 }}
               >?</button>
-            </h3>
+            </div>
 
-            {/* Amenity Weights */}
             <div className="score-row">
               <span className="score-label">Amenity Weights</span>
               <button
@@ -520,8 +628,6 @@ function App() {
                 onClick={() => toggleFlyout(weightsBtnRef, weightsPopupPos, setWeightsPopupPos, [setBoroughPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
-
-            {/* Borough Multipliers */}
             <div className="score-row">
               <span className="score-label">Borough Multipliers</span>
               <button
@@ -530,8 +636,6 @@ function App() {
                 onClick={() => toggleFlyout(boroughBtnRef, boroughPopupPos, setBoroughPopupPos, [setWeightsPopupPos, setDemandSpillPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
-
-            {/* Demand Spillover */}
             <div className="score-row">
               <span className="score-label">Demand Spillover</span>
               <button
@@ -540,9 +644,7 @@ function App() {
                 onClick={() => toggleFlyout(demandSpillBtnRef, demandSpillPopupPos, setDemandSpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setSupplySpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
-
-            {/* Supply Spillover */}
-            <div className="score-row">
+            <div className="score-row score-row--last">
               <span className="score-label">Supply Spillover</span>
               <button
                 ref={supplySpillBtnRef}
@@ -550,99 +652,73 @@ function App() {
                 onClick={() => toggleFlyout(supplySpillBtnRef, supplySpillPopupPos, setSupplySpillPopupPos, [setWeightsPopupPos, setBoroughPopupPos, setDemandSpillPopupPos, (() => setShowHelp(false))])}
               >⚙</button>
             </div>
-
-            <div className="panel-subsection">
-              <div className="panel-subtitle">Demographic Tuning</div>
-
-              <div className="control-group">
-                <label className="control-label">
-                  Min Land: <input
-                    type="number"
-                    className="inline-number"
-                    min="0" max="100" step="1"
-                    value={Math.round(minLandFraction * 100)}
-                    onChange={(e) => setMinLandFraction(Math.min(1, Math.max(0, Number(e.target.value) / 100)))}
-                  />%
-                </label>
-                <input
-                  type="range" min="0" max="100" step="1"
-                  value={Math.round(minLandFraction * 100)}
-                  onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
-                />
-              </div>
-
-              <div className="control-group">
-                <label className="control-label">
-                  Min Population: <input
-                    type="number"
-                    className="inline-number"
-                    min="0" max="50000" step="100"
-                    value={minPopulation}
-                    onChange={(e) => setMinPopulation(Math.max(0, Number(e.target.value)))}
-                  />
-                </label>
-                <input
-                  type="range" min="0" max="10000" step="100"
-                  value={minPopulation}
-                  onChange={(e) => setMinPopulation(Number(e.target.value))}
-                />
-              </div>
-
-              <div className="control-group">
-                <label className="control-label">
-                  Daytime Weight: <input
-                    type="number"
-                    className="inline-number"
-                    min="0" max="100" step="1"
-                    value={Math.round(pendingDaytimeWeight * 100)}
-                    onChange={(e) => {
-                      const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
-                      setPendingDaytimeWeight(v)
-                      setDaytimeWeight(v)
-                    }}
-                  />%
-                </label>
-                <input
-                  type="range" min="0" max="100" step="1"
-                  value={Math.round(pendingDaytimeWeight * 100)}
-                  onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
-                  onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
-                  onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
-                />
-                <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
-              </div>
-
-              <button
-                className="reset-btn"
-                onClick={() => {
-                  setMinLandFraction(0.25)
-                  setMinPopulation(500)
-                  setDaytimeWeight(0.5)
-                  setPendingDaytimeWeight(0.5)
-                }}
-              >
-                Reset Defaults
-              </button>
-            </div>
           </div>
 
-          <div className="panel-card">
-            <h3 className="panel-title italic">Data Filters</h3>
+          {/* Demographic Tuning */}
+          <div className="sidebar-section">
+            <div className="section-title">Demographic Tuning</div>
 
             <div className="control-group">
-              <label className="control-label">
-                Min Amenity Count: <input
-                  type="number"
-                  className="inline-number"
-                  min="0" max="50" step="1"
-                  value={pendingMinAmenityCount}
-                  onChange={(e) => {
-                    const v = Math.min(50, Math.max(0, Number(e.target.value)))
-                    setPendingMinAmenityCount(v)
-                    setMinAmenityCount(v)
-                  }}
-                />
-              </label>
+              <div className="control-label-row">
+                <span className="control-label">Min Land</span>
+                <span className="control-value">{Math.round(minLandFraction * 100)}%</span>
+              </div>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={Math.round(minLandFraction * 100)}
+                onChange={(e) => setMinLandFraction(Number(e.target.value) / 100)}
+              />
+            </div>
+
+            <div className="control-group">
+              <div className="control-label-row">
+                <span className="control-label">Min Population</span>
+                <span className="control-value">{minPopulation}</span>
+              </div>
+              <input
+                type="range" min="0" max="10000" step="100"
+                value={minPopulation}
+                onChange={(e) => setMinPopulation(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="control-group">
+              <div className="control-label-row">
+                <span className="control-label">Daytime Weight</span>
+                <span className="control-value">{Math.round(pendingDaytimeWeight * 100)}%</span>
+              </div>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={Math.round(pendingDaytimeWeight * 100)}
+                onChange={(e) => setPendingDaytimeWeight(Number(e.target.value) / 100)}
+                onMouseUp={() => setDaytimeWeight(pendingDaytimeWeight)}
+                onTouchEnd={() => setDaytimeWeight(pendingDaytimeWeight)}
+              />
+              <span className="filter-coming-soon">0% = residents only · 100% = workers only</span>
+            </div>
+
+            <button
+              className="reset-btn"
+              onClick={() => {
+                setMinLandFraction(0.25)
+                setMinPopulation(500)
+                setDaytimeWeight(0.5)
+                setPendingDaytimeWeight(0.5)
+              }}
+            >
+              Reset Defaults
+            </button>
+          </div>
+
+          {/* Data Filters */}
+          <div className="sidebar-section">
+            <div className="section-title">Data Filters</div>
+
+            <div className="control-group">
+              <div className="control-label-row">
+                <span className="control-label">Min Amenity Count</span>
+                <span className="control-value">{pendingMinAmenityCount}</span>
+              </div>
               <input
                 type="range" min="0" max="50" step="1"
                 value={pendingMinAmenityCount}
@@ -653,19 +729,10 @@ function App() {
             </div>
 
             <div className="control-group">
-              <label className="control-label">
-                Min Opportunity Score: <input
-                  type="number"
-                  className="inline-number"
-                  min="-100" max="100" step="1"
-                  value={pendingMinScore}
-                  onChange={(e) => {
-                    const v = Math.min(100, Math.max(-100, Number(e.target.value)))
-                    setPendingMinScore(v)
-                    setMinScoreFilter(v)
-                  }}
-                />
-              </label>
+              <div className="control-label-row">
+                <span className="control-label">Min Opportunity Score</span>
+                <span className="control-value">{pendingMinScore}</span>
+              </div>
               <input
                 type="range" min="-100" max="100" step="1"
                 value={pendingMinScore}
@@ -676,20 +743,26 @@ function App() {
             </div>
           </div>
 
-          <div className="panel-card">
-            <h3 className="panel-title italic">Map Controls</h3>
+          {/* Map Controls */}
+          <div className="sidebar-section">
+            <div className="section-title">Map Controls</div>
 
             <div className="control-group">
-              <label className="control-label">Show H3 Grid</label>
-              <input
-                type="checkbox"
-                checked={showH3}
-                onChange={(e) => setShowH3(e.target.checked)}
-              />
+              <div className="control-label-row">
+                <span className="control-label">Show H3 Grid</span>
+                <input
+                  type="checkbox"
+                  checked={showH3}
+                  onChange={(e) => setShowH3(e.target.checked)}
+                />
+              </div>
             </div>
 
             <div className="control-group">
-              <label className="control-label">Resolution: {pendingResolution}</label>
+              <div className="control-label-row">
+                <span className="control-label">Resolution</span>
+                <span className="control-value">{pendingResolution}</span>
+              </div>
               <input
                 type="range" min="7" max="9" step="1"
                 value={pendingResolution}
@@ -700,7 +773,10 @@ function App() {
             </div>
 
             <div className="control-group">
-              <label className="control-label">Opacity: {opacity.toFixed(2)}</label>
+              <div className="control-label-row">
+                <span className="control-label">Opacity</span>
+                <span className="control-value">{opacity.toFixed(2)}</span>
+              </div>
               <input
                 type="range" min="0" max="1" step="0.05"
                 value={opacity}
@@ -713,8 +789,9 @@ function App() {
             </button>
           </div>
 
-          <div className="panel-card">
-            <h3 className="panel-title italic">View Settings</h3>
+          {/* View Settings */}
+          <div className="sidebar-section sidebar-section--last">
+            <div className="section-title">View Settings</div>
             <div className="toggle-row">
               <span>Dark Mode</span>
               <div
@@ -733,7 +810,7 @@ function App() {
 
         </aside>
 
-        <main className="map-area" style={{display: activeTab === 'map' ? 'flex' : 'none'}}>
+        <main className="map-area" style={{ display: activeTab === 'map' ? 'flex' : 'none' }}>
 
           <div id="map-container" ref={mapContainerRef} />
           {selectedAmenity && (
@@ -741,28 +818,28 @@ function App() {
               <div className="legend-title">Opportunity Score</div>
               <div className="legend-items">
                 <div className="legend-item">
-                  <div className="legend-swatch" style={{background: '#1a9850'}}></div>
+                  <div className="legend-swatch" style={{ background: '#1a9850' }}></div>
                   <span>High opportunity</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-swatch" style={{background: '#91cf60'}}></div>
+                  <div className="legend-swatch" style={{ background: '#91cf60' }}></div>
                   <span>Good opportunity</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-swatch" style={{background: '#fee08b'}}></div>
+                  <div className="legend-swatch" style={{ background: '#fee08b' }}></div>
                   <span>Moderate</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-swatch" style={{background: '#fc8d59'}}></div>
+                  <div className="legend-swatch" style={{ background: '#fc8d59' }}></div>
                   <span>Low opportunity</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-swatch" style={{background: '#67001f'}}></div>
+                  <div className="legend-swatch" style={{ background: '#67001f' }}></div>
                   <span>Saturated</span>
                 </div>
                 <div className="legend-divider"></div>
                 <div className="legend-item">
-                  <div className="legend-swatch" style={{background: '#888'}}></div>
+                  <div className="legend-swatch" style={{ background: '#888' }}></div>
                   <span>Excluded</span>
                 </div>
               </div>
@@ -924,7 +1001,7 @@ function App() {
         </div>
       )}
 
-      {/* Opportunity Score Help Popup */}
+      {/* Opportunity Score Help */}
       {showHelp && (
         <div className="help-overlay" onClick={() => setShowHelp(false)}>
           <div className="popup-modal help-modal" onClick={(e) => e.stopPropagation()}>
@@ -936,42 +1013,34 @@ function App() {
                 Score = gap between <b>expected demand</b> and <b>actual supply</b>, normalized to ±100.
                 Positive = underserved (opportunity). Negative = oversupplied. Grey = excluded by filters.
               </p>
-
               <div className="help-section">
                 <div className="help-term">Amenity Weights</div>
                 <div className="help-desc">Ideal people-per-amenity ratio. 1500 deli weight = 1 deli serves 1500 people.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Borough Multipliers</div>
                 <div className="help-desc">Scales demand per borough. Manhattan 1.5 = treat 1 resident as 1.5 effective demand.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Demand Spillover (Ring 1 / Ring 2)</div>
                 <div className="help-desc">How much population + workers from neighbor cells count toward this cell's demand. Walking radius. Defaults scale by resolution.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Supply Spillover (Ring 1 / Ring 2)</div>
                 <div className="help-desc">How much amenities in neighbor cells count toward this cell's supply. Same walking logic.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Min Land %</div>
                 <div className="help-desc">Excludes cells mostly water or park. Default 25%.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Min Population</div>
                 <div className="help-desc">Excludes sparse cells where small denominators distort score. Default 500.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Daytime Weight</div>
                 <div className="help-desc">Blend of residents (0%) vs workers (100%). Deli serves daytime workers; pharmacy serves residents.</div>
               </div>
-
               <div className="help-section">
                 <div className="help-term">Formula</div>
                 <div className="help-desc">
