@@ -94,6 +94,11 @@ export function calculateOpportunityScores(amenities, populationData, amenityTyp
       continue
     }
 
+    if ((popLookup[cellId] || 0) + (jobsLookup[cellId] || 0) === 0) {
+      scores[cellId] = null
+      continue
+    }
+
     const { ring1, ring2 } = getRingsCached(cellId, resolution, cellMetadata)
     let ring1Demand = 0, ring2Demand = 0
     let ring1Supply = 0, ring2Supply = 0

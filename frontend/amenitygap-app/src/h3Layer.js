@@ -92,7 +92,8 @@ export function loadAllH3Layers(map, darkMode = true) {
     });
 
     map.on('click', `h3-fill-${res}`, (e) => {
-      const points = map.queryRenderedFeatures(e.point, { layers: ['amenity-points'] });
+      const overlayLayers = ['amenity-points', 'search-points'].filter(l => map.getLayer(l));
+      const points = overlayLayers.length ? map.queryRenderedFeatures(e.point, { layers: overlayLayers }) : [];
       if (points.length > 0) return;
 
       const f = e.features?.[0];
