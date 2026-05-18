@@ -144,3 +144,11 @@
   );
   z-index: 20;
 }
+
+.landing-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  opacity: 0.95;
+  margin-bottom: -10px;
+}
