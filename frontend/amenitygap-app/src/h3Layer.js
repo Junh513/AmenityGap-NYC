@@ -91,7 +91,12 @@ export function loadAllH3Layers(map, darkMode = true) {
       },
     });
 
-    map.on('click', `h3-fill-${res}`, (e) => {
+    const layerId = `h3-fill-${res}`;
+    map._h3ClickHandlers = map._h3ClickHandlers || {};
+    if (map._h3ClickHandlers[layerId]) {
+      map.off('click', layerId, map._h3ClickHandlers[layerId]);
+    }
+    const clickHandler = (e) => {
       const overlayLayers = ['amenity-points', 'search-points'].filter(l => map.getLayer(l));
       const points = overlayLayers.length ? map.queryRenderedFeatures(e.point, { layers: overlayLayers }) : [];
       if (points.length > 0) return;
@@ -136,7 +141,9 @@ export function loadAllH3Layers(map, darkMode = true) {
           </div>
         `)
         .addTo(map);
-    });
+    };
+    map._h3ClickHandlers[layerId] = clickHandler;
+    map.on('click', layerId, clickHandler);
   }
 }
 
