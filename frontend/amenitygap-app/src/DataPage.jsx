@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import './DataPage.css'
 
+const SUPABASE_KEY = 'sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog'
+const SUPABASE_BASE = 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1'
+
 const DATASETS = [
   {
     name: 'OSM Amenities',
@@ -8,7 +11,10 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'All Amenity Types',
     tag: 'amenities',
-    url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/amenities?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog',
+    downloads: [
+      { label: 'Download (JSON)', url: `${SUPABASE_BASE}/amenities?select=*&apikey=${SUPABASE_KEY}`, filename: 'osm_amenities.json' },
+    ],
+    sourceUrl: 'https://www.openstreetmap.org/',
   },
   {
     name: 'NYC Census Tracts',
@@ -16,7 +22,10 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Demographics',
     tag: 'demographics',
-    url: 'https://data.cityofnewyork.us/City-Government/2020-Census-Tracts/63ge-mke6/about_data',
+    downloads: [
+      { label: 'Download (JSON)', url: 'https://data.cityofnewyork.us/api/views/63ge-mke6/rows.json?accessType=DOWNLOAD', filename: 'nyc_census_tracts.json' },
+    ],
+    sourceUrl: 'https://data.cityofnewyork.us/City-Government/2020-Census-Tracts/63ge-mke6/about_data',
   },
   {
     name: '2020 US Census',
@@ -24,7 +33,10 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Population Data',
     tag: 'population',
-    url: 'https://www.census.gov/data/developers/data-sets/decennial-census.html',
+    downloads: [
+      { label: 'Download (JSON)', url: 'https://api.census.gov/data/2020/dec/pl?get=NAME,P1_001N&for=tract:*&in=state:36', filename: 'census_2020_nyc.json' },
+    ],
+    sourceUrl: 'https://www.census.gov/data/developers/data-sets/decennial-census.html',
   },
   {
     name: 'H3 Population Grid',
@@ -32,11 +44,12 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Population per H3 Cell',
     tag: 'spatial',
-    url: [
-      { label: 'Resolution 7', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_population_res7?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
-      { label: 'Resolution 8', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_population_res8?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
-      { label: 'Resolution 9', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_population_res9?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+    downloads: [
+      { label: 'Download Res 7 (JSON)', url: `${SUPABASE_BASE}/h3_population_res7?select=*&apikey=${SUPABASE_KEY}`, filename: 'h3_population_res7.json' },
+      { label: 'Download Res 8 (JSON)', url: `${SUPABASE_BASE}/h3_population_res8?select=*&apikey=${SUPABASE_KEY}`, filename: 'h3_population_res8.json' },
+      { label: 'Download Res 9 (JSON)', url: `${SUPABASE_BASE}/h3_population_res9?select=*&apikey=${SUPABASE_KEY}`, filename: 'h3_population_res9.json' },
     ],
+    sourceUrl: 'https://github.com/Junh513/AmenityGap-NYC',
   },
   {
     name: 'LEHD Job Data',
@@ -44,13 +57,33 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Worker Daytime Population',
     tag: 'workforce',
-    url: [
-      { label: 'Resolution 7', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_jobs_res7?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
-      { label: 'Resolution 8', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_jobs_res8?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
-      { label: 'Resolution 9', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_jobs_res9?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+    downloads: [
+      { label: 'Download Res 7 (JSON)', url: `${SUPABASE_BASE}/h3_jobs_res7?select=*&apikey=${SUPABASE_KEY}`, filename: 'h3_jobs_res7.json' },
+      { label: 'Download Res 8 (JSON)', url: `${SUPABASE_BASE}/h3_jobs_res8?select=*&apikey=${SUPABASE_KEY}`, filename: 'h3_jobs_res8.json' },
+      { label: 'Download Res 9 (JSON)', url: `${SUPABASE_BASE}/h3_jobs_res9?select=*&apikey=${SUPABASE_KEY}`, filename: 'h3_jobs_res9.json' },
     ],
+    sourceUrl: 'https://lehd.ces.census.gov/data/',
   },
 ]
+
+async function downloadDataset(url, filename) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(objUrl)
+  } catch (err) {
+    console.error('Download failed:', err)
+    alert(`Download failed: ${err.message}`)
+  }
+}
 
 export default function DataPage() {
   const terminalBodyRef = useRef(null)
@@ -154,42 +187,44 @@ export default function DataPage() {
                     <span className={`data-tag data-tag--${d.tag}`}>{d.coverage}</span>
                   </td>
                   <td>
-                    {Array.isArray(d.url) ? (
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                          className="data-dl-btn"
-                          onClick={() =>
-                            setOpenDropdown(openDropdown === d.name ? null : d.name)
-                          }
-                        >
-                          ↗ View Data ▾
-                        </button>
-
-                        {openDropdown === d.name && (
-                          <div className="data-dropdown">
-                            {d.url.map((u) => (
-                              <a
-                                key={u.label}
-                                href={u.url}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                {u.label}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <a
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <button
                         className="data-dl-btn"
-                        href={d.url}
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={() =>
+                          setOpenDropdown(openDropdown === d.name ? null : d.name)
+                        }
                       >
-                        ↗ View Data
-                      </a>
-                    )}
+                        ↗ View Data ▾
+                      </button>
+
+                      {openDropdown === d.name && (
+                        <div className="data-dropdown">
+                          {d.downloads?.map((u) => (
+                            <button
+                              key={u.label}
+                              type="button"
+                              className="data-dropdown-item"
+                              onClick={() => {
+                                downloadDataset(u.url, u.filename)
+                                setOpenDropdown(null)
+                              }}
+                            >
+                              ↓ {u.label}
+                            </button>
+                          ))}
+                          {d.sourceUrl && (
+                            <a
+                              href={d.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={() => setOpenDropdown(null)}
+                            >
+                              ↗ View Source
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
