@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 ### SETUP OVERPASS ###
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# OVERPASS_URL = "https://overpass.kumi.systems/api/interpreter"
+# OVERPASS_URL = "https://overpass.openstreetmap.fr/api/interpreter"
+# OVERPASS_URL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
 
 overpass_query = """
 [out:json][timeout:25];
@@ -24,6 +27,8 @@ AMENITY_CONFIG = {
     'deli': 'node["shop"="deli"](area.searchArea); way["shop"="deli"](area.searchArea); node["shop"="convenience"](area.searchArea);',
     'barber': 'node["shop"~"barber|hairdresser"](area.searchArea); way["shop"~"barber|hairdresser"](area.searchArea);',
     'gas_station': 'node["amenity"="fuel"](area.searchArea); way["amenity"="fuel"](area.searchArea);',
+    'gym': 'node["leisure"="fitness_centre"](area.searchArea); way["leisure"="fitness_centre"](area.searchArea);',
+    'grocery': 'node["shop"~"supermarket|grocery"](area.searchArea); way["shop"~"supermarket|grocery"](area.searchArea);',
 }
 
 ### SETUP SUPABASE ###
@@ -98,37 +103,8 @@ def push_to_supabase(df):
         print(f"Error pushing to Supabase: {e}")
 
 
-# def run():
-#     parser = argparse.ArgumentParser(description="NYC Amenity ETL Ingestor")
-#     parser.add_argument("--type", help="Amenity type (laundry, pharmacy, deli, or 'all')", required=True)
-#     args = parser.parse_args()
 
-#     # Determine which types to process
-#     types_to_run = AMENITY_CONFIG.keys() if args.type == "all" else [args.type]
-
-#     for amt_type in types_to_run:
-#         osm_filter = AMENITY_CONFIG.get(amt_type)
-
-#         if not osm_filter:
-#             print(f"Error: Type '{amt_type}' is not supported.")
-#             continue
-        
-#         dynamic_query = f"""
-#             [out:json][timeout:90];
-#             area(3600175905)->.searchArea;
-#             ({osm_filter});
-#             out center;
-#         """
-
-#         print(f"\n--- Starting ETL for: {amt_type} ---")
-#         df = fetch_and_index(dynamic_query, amt_type)
-
-#         if df is not None:
-#             push_to_supabase(df)
-#         else:
-#             print(f"Skipping {amt_type}: Fetch failed.")
-
-import time # Add this at the top with your other imports
+import time 
 
 def run():
     parser = argparse.ArgumentParser(description="NYC Amenity ETL Ingestor")
