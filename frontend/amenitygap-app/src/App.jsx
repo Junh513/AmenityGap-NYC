@@ -28,6 +28,8 @@ const DEFAULT_WEIGHTS = {
   pharmacy: 3000,
   barber: 2500,
   gas_station: 5000,
+  grocery: 3000,
+  gym: 4000,
 }
 
 const DEFAULT_BOROUGH_MULTIPLIERS = {
@@ -317,9 +319,8 @@ function App() {
       let types = []
 
       try {
-        const rows = await supabase.from('amenities').select('amenity_type')
-        if (rows.error) throw rows.error
-        types = [...new Set(rows.data.map(r => r.amenity_type))]
+        const rows = await fetchAll('amenities', 'amenity_type')
+        types = [...new Set(rows.map(r => r.amenity_type))]
         setAmenityTypes(types)
       } catch (err) {
         console.warn('Supabase types unavailable, using cache:', err.message)
