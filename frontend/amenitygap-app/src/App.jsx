@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { loadAllH3Layers, showResolution, setH3Opacity, applyAmenityData, applyPopulationData, applyJobsData, applyOpportunityScores } from './h3Layer'
 import { calculateOpportunityScores } from './scoring'
 import { useDebouncedValue } from './useDebouncedValue'
+import { supabase, fetchAll } from './supabaseClient'
 import './App.css'
 import LandingPage from './landingPage'
 import AboutPage from './AboutPage'
@@ -304,24 +305,31 @@ function App() {
       mapRef.current.on('mouseleave', 'amenity-points', () => (mapRef.current.getCanvas().style.cursor = ''))
     })
 
+    const loadFromCache = async (path) => {
+      const r = await fetch(path)
+      if (!r.ok) throw new Error(`cache miss ${path} ${r.status}`)
+      return r.json()
+    }
+
     const fetchAmenityPop = async () => {
       setLoading(true)
-      let types = []
       let fromCache = false
+      let types = []
+
       try {
-        const res = await fetch('http://localhost:3001/api/amenity-types')
-        if (!res.ok) throw new Error('Backend error')
-        types = await res.json()
+        const rows = await supabase.from('amenities').select('amenity_type')
+        if (rows.error) throw rows.error
+        types = [...new Set(rows.data.map(r => r.amenity_type))]
         setAmenityTypes(types)
       } catch (err) {
+        console.warn('Supabase types unavailable, using cache:', err.message)
         fromCache = true
-        console.warn('Backend unavailable, using cached types:', err.message)
         try {
-          const fallback = await fetch('/cache/amenity-types.json')
-          types = await fallback.json()
+          types = await loadFromCache('/cache/amenity-types.json')
           setAmenityTypes(types)
         } catch {
           console.error('No cached amenity types available')
+          setLoading(false)
           return
         }
       }
@@ -330,13 +338,11 @@ function App() {
       const results = await Promise.all(
         types.map(async (type) => {
           try {
-            const res = await fetch(`http://localhost:3001/api/amenities?type=${type}`)
-            if (!res.ok) throw new Error('Backend error')
-            return { type, data: await res.json() }
+            const data = await fetchAll('amenities', '*', { amenity_type: type })
+            return { type, data }
           } catch {
             try {
-              const fallback = await fetch(`/cache/${type}.json`)
-              return { type, data: await fallback.json() }
+              return { type, data: await loadFromCache(`/cache/${type}.json`) }
             } catch {
               console.error(`No data for ${type}`)
               return { type, data: null }
@@ -344,22 +350,15 @@ function App() {
           }
         })
       )
-
       for (const { type, data } of results) {
-        if (data) {
-          cache[type] = data
-        } else {
-          fromCache = true
-        }
+        if (data) cache[type] = data
+        else fromCache = true
       }
-
       setAmenityCache(cache)
 
       setAmenityWeights(prev => {
         const updated = { ...prev }
-        for (const type of types) {
-          if (!(type in updated)) updated[type] = 2000
-        }
+        for (const type of types) if (!(type in updated)) updated[type] = 2000
         return updated
       })
 
@@ -367,13 +366,11 @@ function App() {
       const popResults = await Promise.all(
         [7, 8, 9].map(async (res) => {
           try {
-            const r = await fetch(`http://localhost:3001/api/population?res=${res}`)
-            if (!r.ok) throw new Error('Backend error')
-            return { res, data: await r.json() }
+            const data = await fetchAll(`h3_population_res${res}`, 'h3_index,population')
+            return { res, data }
           } catch {
             try {
-              const fb = await fetch(`/cache/population-res${res}.json`)
-              return { res, data: await fb.json() }
+              return { res, data: await loadFromCache(`/cache/population-res${res}.json`) }
             } catch {
               console.error(`No population data for res ${res}`)
               return { res, data: null }
@@ -381,22 +378,17 @@ function App() {
           }
         })
       )
-
-      for (const { res, data } of popResults) {
-        if (data) popData[res] = data
-      }
+      for (const { res, data } of popResults) if (data) popData[res] = data
 
       const jobsData = {}
       const jobsResults = await Promise.all(
         [7, 8, 9].map(async (res) => {
           try {
-            const r = await fetch(`http://localhost:3001/api/jobs?res=${res}`)
-            if (!r.ok) throw new Error('Backend error')
-            return { res, data: await r.json() }
+            const data = await fetchAll(`h3_jobs_res${res}`, 'h3_index,jobs')
+            return { res, data }
           } catch {
             try {
-              const fb = await fetch(`/cache/jobs-res${res}.json`)
-              return { res, data: await fb.json() }
+              return { res, data: await loadFromCache(`/cache/jobs-res${res}.json`) }
             } catch {
               console.error(`No jobs data for res ${res}`)
               return { res, data: null }
@@ -404,32 +396,14 @@ function App() {
           }
         })
       )
+      for (const { res, data } of jobsResults) if (data) jobsData[res] = data
 
-      for (const { res, data } of jobsResults) {
-        if (data) jobsData[res] = data
-      }
-
-      let metaLoaded = false
       try {
-        const metaRes = await fetch('http://localhost:3001/api/cell-metadata')
-        if (!metaRes.ok) throw new Error('Backend error')
-        const metaData = await metaRes.json()
+        const metaData = await loadFromCache('/cache/cell-metadata.json')
+        if (!metaData || typeof metaData !== 'object') throw new Error('bad metadata shape')
         setCellMetadata(metaData)
-        metaLoaded = true
       } catch (err) {
-        console.warn('Backend metadata unavailable, trying cache:', err.message)
-      }
-      if (!metaLoaded) {
-        try {
-          const fb = await fetch('/cache/cell-metadata.json')
-          if (!fb.ok) throw new Error(`cache miss ${fb.status}`)
-          const metaData = await fb.json()
-          if (!metaData || typeof metaData !== 'object') throw new Error('bad metadata shape')
-          setCellMetadata(metaData)
-          fromCache = true
-        } catch (err) {
-          console.error('No cell metadata available:', err.message)
-        }
+        console.error('No cell metadata available:', err.message)
       }
 
       setPopCache(popData)
