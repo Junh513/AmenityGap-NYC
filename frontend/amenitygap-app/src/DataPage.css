@@ -229,3 +229,49 @@
 .data-disclaimer strong {
   color: #1a3d38;
 }
+.data-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #1a2a28;
+  border: 1px solid rgba(122, 184, 176, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 10;
+  min-width: 140px;
+}
+
+.data-dropdown a,
+.data-dropdown .data-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 13px;
+  color: #7ab8b0;
+  text-decoration: none;
+  white-space: nowrap;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.data-dropdown a:hover,
+.data-dropdown .data-dropdown-item:hover {
+  background: rgba(122, 184, 176, 0.1);
+}
+
+.data-dropdown a + a,
+.data-dropdown .data-dropdown-item + a,
+.data-dropdown .data-dropdown-item + .data-dropdown-item,
+.data-dropdown a + .data-dropdown-item {
+  border-top: 1px solid rgba(122, 184, 176, 0.1);
+}
+.data-table-wrap {
+  overflow: visible;
+}
+
+.data-table {
+  overflow: visible;
+}
