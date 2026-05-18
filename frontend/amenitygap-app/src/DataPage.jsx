@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState} from 'react'
 import './DataPage.css'
 
 const DATASETS = [
@@ -8,7 +8,7 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'All Amenity Types',
     tag: 'amenities',
-    url: '',
+    url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/amenities?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog',
   },
   {
     name: 'NYC Census Tracts',
@@ -16,7 +16,7 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Demographics',
     tag: 'demographics',
-    url: '',
+    url: 'https://data.cityofnewyork.us/City-Government/2020-Census-Tracts/63ge-mke6/about_data',
   },
   {
     name: '2020 US Census',
@@ -24,7 +24,7 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Population Data',
     tag: 'population',
-    url: '',
+    url: 'https://www.census.gov/data/developers/data-sets/decennial-census.html',
   },
   {
     name: 'H3 Population Grid',
@@ -32,7 +32,11 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Population per H3 Cell',
     tag: 'spatial',
-    url: '',
+    url: [
+      { label: 'Resolution 7', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_population_res7?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+      { label: 'Resolution 8', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_population_res8?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+      { label: 'Resolution 9', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_population_res9?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+    ],
   },
   {
     name: 'LEHD Job Data',
@@ -40,12 +44,17 @@ const DATASETS = [
     updated: 'Apr 2026',
     coverage: 'Worker Daytime Population',
     tag: 'workforce',
-    url: '',
+    url: [
+      { label: 'Resolution 7', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_jobs_res7?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+      { label: 'Resolution 8', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_jobs_res8?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+      { label: 'Resolution 9', url: 'https://wnjgkoxtbfqdvoydyszj.supabase.co/rest/v1/h3_jobs_res9?select=*&apikey=sb_publishable_gmNphTKfAOJ41tebwvCVdg_ezjFpOog' },
+    ],
   },
 ]
 
 export default function DataPage() {
   const terminalBodyRef = useRef(null)
+  const [openDropdown, setOpenDropdown] = useState(null)
 
   useEffect(() => {
     const lines = [
@@ -145,14 +154,42 @@ export default function DataPage() {
                     <span className={`data-tag data-tag--${d.tag}`}>{d.coverage}</span>
                   </td>
                   <td>
-                    <a
-                      className="data-dl-btn"
-                      href={d.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      ↗ View Data
-                    </a>
+                    {Array.isArray(d.url) ? (
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <button
+                          className="data-dl-btn"
+                          onClick={() =>
+                            setOpenDropdown(openDropdown === d.name ? null : d.name)
+                          }
+                        >
+                          ↗ View Data ▾
+                        </button>
+
+                        {openDropdown === d.name && (
+                          <div className="data-dropdown">
+                            {d.url.map((u) => (
+                              <a
+                                key={u.label}
+                                href={u.url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {u.label}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <a
+                        className="data-dl-btn"
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        ↗ View Data
+                      </a>
+                    )}
                   </td>
                 </tr>
               ))}
