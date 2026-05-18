@@ -38,15 +38,25 @@ app.get('/', (req, res) => {
 
 app.get('/api/amenity-types', async (req, res) => {
   const cacheFile = path.join(CACHE_DIR, 'amenity-types.json');
+  const limit = 1000;
+  let offset = 0;
+  let allData = [];
 
   try {
-    const { data, error } = await supabase
-      .from('amenities')
-      .select('amenity_type');
+    while (true) {
+      const { data, error } = await supabase
+        .from('amenities')
+        .select('amenity_type')
+        .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < limit) break;
+      offset += limit;
+    }
 
-    const types = [...new Set(data.map(d => d.amenity_type))];
+    const types = [...new Set(allData.map(d => d.amenity_type))];
     fs.writeFileSync(cacheFile, JSON.stringify(types));
     syncToFrontend('amenity-types.json');
     res.json(types);
