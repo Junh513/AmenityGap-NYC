@@ -229,3 +229,38 @@
 .data-disclaimer strong {
   color: #1a3d38;
 }
+.data-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #1a2a28;
+  border: 1px solid rgba(122, 184, 176, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 10;
+  min-width: 140px;
+}
+
+.data-dropdown a {
+  display: block;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #7ab8b0;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.data-dropdown a:hover {
+  background: rgba(122, 184, 176, 0.1);
+}
+
+.data-dropdown a + a {
+  border-top: 1px solid rgba(122, 184, 176, 0.1);
+}
+.data-table-wrap {
+  overflow: visible;
+}
+
+.data-table {
+  overflow: visible;
+}
