@@ -72,7 +72,7 @@ html, body, #root {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   flex-shrink: 0;
   scrollbar-width: thin;
   scrollbar-color: #7ab8b0 #e8efed;
@@ -97,7 +97,7 @@ html, body, #root {
 }
 
 .sidebar-section {
-  padding: 14px 16px;
+  padding: 8px 16px;
 }
 
 .sidebar-section--top {
@@ -138,10 +138,6 @@ html, body, #root {
 }
 
 .help-btn {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -156,6 +152,7 @@ html, body, #root {
   justify-content: center;
   padding: 0;
   font-style: normal;
+  flex-shrink: 0;
 }
 
 .help-btn:hover {
@@ -175,10 +172,10 @@ html, body, #root {
 }
 
 .help-modal {
-  width: 480px;
-  max-width: 90vw;
-  max-height: 80vh;
-  padding: 24px;
+  width: 620px;
+  max-width: 92vw;
+  max-height: 85vh;
+  padding: 32px;
   scrollbar-width: thin;
   scrollbar-color: #7ab8b0 #e8efed;
 }
@@ -202,18 +199,18 @@ html, body, #root {
 }
 
 .help-content {
-  font-size: 0.78rem;
+  font-size: 0.95rem;
   color: #2a3a48;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .help-content p {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .help-section {
-  margin-bottom: 10px;
-  padding-bottom: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e0e8ee;
 }
 
@@ -223,15 +220,15 @@ html, body, #root {
 
 .help-term {
   font-weight: bold;
-  font-size: 0.82rem;
+  font-size: 1rem;
   color: #1a3d38;
-  margin-bottom: 3px;
+  margin-bottom: 5px;
 }
 
 .help-desc {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   color: #556070;
-  line-height: 1.55;
+  line-height: 1.65;
 }
 
 .amenity-select {
@@ -260,7 +257,7 @@ html, body, #root {
 }
 
 .search-bar {
-  display: relative;
+  display: flex;
   align-items: center;
   background-color: white;
   border-radius: 8px;
@@ -490,6 +487,14 @@ input[type='range'] {
   font-size: 1.1rem;
   color: #1a4060;
   margin: 0;
+}
+
+.help-modal .popup-header h3 {
+  font-size: 1.35rem;
+}
+
+.help-modal .popup-header {
+  margin-bottom: 16px;
 }
 
 .popup-close {

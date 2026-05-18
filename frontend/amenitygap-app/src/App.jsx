@@ -52,6 +52,7 @@ function App() {
   const demandSpillBtnRef = useRef(null)
   const supplySpillBtnRef = useRef(null)
   const scoreHelpBtnRef = useRef(null)
+  const demoHelpBtnRef = useRef(null)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showH3, setShowH3] = useState(true)
@@ -91,6 +92,7 @@ function App() {
   const [demandSpillPopupPos, setDemandSpillPopupPos] = useState(null)
   const [supplySpillPopupPos, setSupplySpillPopupPos] = useState(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [showDemoHelp, setShowDemoHelp] = useState(false)
   const [cellMetadata, setCellMetadata] = useState(null)
 
   const dMinLand = useDebouncedValue(minLandFraction)
@@ -287,8 +289,12 @@ function App() {
 
       mapRef.current.on('click', 'amenity-points', (e) => {
         e.originalEvent.stopPropagation()
+        if (mapRef.current.getLayer('search-points')) {
+          const hits = mapRef.current.queryRenderedFeatures(e.point, { layers: ['search-points'] })
+          if (hits.length) return
+        }
         const f = e.features[0]
-        new mapboxgl.Popup()
+        new mapboxgl.Popup({ className: 'search-popup' })
           .setLngLat(f.geometry.coordinates)
           .setHTML(`<b>${f.properties.name}</b>`)
           .addTo(mapRef.current)
@@ -597,7 +603,6 @@ function App() {
               </span>
             )}
 
-            <span className="search-icon">🔍</span>
           </div>
         </div>
 
@@ -615,6 +620,7 @@ function App() {
                   setBoroughPopupPos(null)
                   setDemandSpillPopupPos(null)
                   setSupplySpillPopupPos(null)
+                  setShowDemoHelp(false)
                   setShowHelp(true)
                 }}
               >?</button>
@@ -656,7 +662,17 @@ function App() {
 
           {/* Demographic Tuning */}
           <div className="sidebar-section">
-            <div className="section-title">Demographic Tuning</div>
+            <div className="section-header">
+              <span className="section-title">Demographic Tuning</span>
+              <button
+                ref={demoHelpBtnRef}
+                className="help-btn"
+                onClick={() => {
+                  setShowHelp(false)
+                  setShowDemoHelp(true)
+                }}
+              >?</button>
+            </div>
 
             <div className="control-group">
               <div className="control-label-row">
@@ -1030,18 +1046,6 @@ function App() {
                 <div className="help-desc">How much amenities in neighbor cells count toward this cell's supply. Same walking logic.</div>
               </div>
               <div className="help-section">
-                <div className="help-term">Min Land %</div>
-                <div className="help-desc">Excludes cells mostly water or park. Default 25%.</div>
-              </div>
-              <div className="help-section">
-                <div className="help-term">Min Population</div>
-                <div className="help-desc">Excludes sparse cells where small denominators distort score. Default 500.</div>
-              </div>
-              <div className="help-section">
-                <div className="help-term">Daytime Weight</div>
-                <div className="help-desc">Blend of residents (0%) vs workers (100%). Deli serves daytime workers; pharmacy serves residents.</div>
-              </div>
-              <div className="help-section">
                 <div className="help-term">Formula</div>
                 <div className="help-desc">
                   effectivePop = blended demand × borough multiplier<br/>
@@ -1049,6 +1053,32 @@ function App() {
                   gap = expectedNeed − effectiveSupply<br/>
                   score = clamp(gap / expectedNeed × 100, −100, +100)
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Demographic Tuning Help */}
+      {showDemoHelp && (
+        <div className="help-overlay" onClick={() => setShowDemoHelp(false)}>
+          <div className="popup-modal help-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <h3>Demographic Tuning</h3>
+            </div>
+            <div className="help-content">
+              <p>Thresholds and blend that gate which cells get scored and how demand is composed.</p>
+              <div className="help-section">
+                <div className="help-term">Min Land %</div>
+                <div className="help-desc">Excludes cells mostly water or park. Below this fraction, cell is greyed out. Default 25%.</div>
+              </div>
+              <div className="help-section">
+                <div className="help-term">Min Population</div>
+                <div className="help-desc">Excludes sparse cells. Below this blended population, scoring skipped to avoid tiny-denominator distortion. Default 500.</div>
+              </div>
+              <div className="help-section">
+                <div className="help-term">Daytime Weight</div>
+                <div className="help-desc">Blends residents vs workers in the demand calc. 0% = residents only, 100% = workers only. Pharmacy skews residential; deli skews daytime. Default 50%.</div>
               </div>
             </div>
           </div>
